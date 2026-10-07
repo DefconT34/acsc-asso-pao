@@ -43,8 +43,9 @@ jobs:
         run: |
           echo "Host: $([ -n '${{ secrets.O2SWITCH_HOST }}' ] && echo SET || echo MISSING)"
           echo "User: $([ -n '${{ secrets.O2SWITCH_USER }}' ] && echo SET || echo MISSING)"
-          echo "Password: $([ -n '${{ secrets.O2SWITCH_PASSWORD }}' ] && echo SET || echo EMPTY - normal si cle SSH)"
-          echo "SSH_KEY: $([ -n '${{ secrets.O2SWITCH_SSH_KEY }}' ] && echo SET || echo EMPTY - normal si password)"
+          echo "Password: $([ -n '${{ secrets.O2SWITCH_PASSWORD }}' ] && echo SET || echo EMPTY - normal si cle SSH sans password cPanel)"
+          echo "SSH_KEY: $([ -n '${{ secrets.O2SWITCH_SSH_KEY }}' ] && echo SET || echo EMPTY - normal si auth par password)"
+          echo "SSH_PASSPHRASE: $([ -n '${{ secrets.O2SWITCH_SSH_PASSPHRASE }}' ] && echo SET || echo EMPTY - requis seulement si cle chiffre)"
           echo "Port: ${{ secrets.O2SWITCH_PORT || '22 (default)' }}"
           echo "Path: ${{ secrets.O2SWITCH_PATH || 'MISSING !' }}"
           echo "NodeVenv: ${{ secrets.O2SWITCH_NODEVENV || '(vide - fallback auto)' }}"
@@ -53,13 +54,16 @@ jobs:
             exit 1
           fi
           if [ -z "${{ secrets.O2SWITCH_PASSWORD }}" ] && [ -z "${{ secrets.O2SWITCH_SSH_KEY }}" ]; then
-            echo "::error::Ni O2SWITCH_PASSWORD ni O2SWITCH_SSH_KEY defini - configure l'un des deux (password = mot de passe cPanel)"
+            echo "::error::Ni O2SWITCH_PASSWORD ni O2SWITCH_SSH_KEY defini - configure l'un des deux (password = mot de passe cPanel le plus simple sur o2switch)"
             exit 1
           fi
 
       # 1) Copie fichiers vers o2switch en SCP (sans node_modules/database.db/.env)
-      # o2switch cPanel = auth password par defaut. Si tu utilises une cle SSH, renseigne O2SWITCH_SSH_KEY (laisse password vide).
-      # appleboy/shuffle : si key est vide il ignore key et utilise password, et vice-versa.
+      # o2switch cPanel = auth PASSWORD par defaut (le plus simple, pas besoin de cle).
+      # Si tu fournis O2SWITCH_SSH_KEY :
+      #   - cle SANS passphrase -> renseigne juste O2SWITCH_SSH_KEY
+      #   - cle AVEC passphrase -> renseigne O2SWITCH_SSH_KEY + O2SWITCH_SSH_PASSPHRASE
+      #   Sinon erreur "this private key is passphrase protected" (ton erreur actuelle)
       - name: SCP to o2switch
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -67,12 +71,15 @@ jobs:
           username: ${{ secrets.O2SWITCH_USER }}
           password: ${{ secrets.O2SWITCH_PASSWORD }}
           key: ${{ secrets.O2SWITCH_SSH_KEY }}
-          port: ${{ secrets.O2SWITCH_PORT || 22 }}
+          passphrase: ${{ secrets.O2SWITCH_SSH_PASSPHRASE }}
+          port: ${{ secrets.O2SWITCH_PORT }}
           source: "server.js,server.o2switch.js,package.json,package-lock.json,public/**,.htaccess,ecosystem.config.example.js"
           target: "${{ secrets.O2SWITCH_PATH }}"
           overwrite: true
           strip_components: 0
           rm: false
+          timeout: 60s
+          command_timeout: 10m
           debug: true
 
       # 2) Sur le serveur : npm ci + restart Passenger
@@ -83,7 +90,10 @@ jobs:
           username: ${{ secrets.O2SWITCH_USER }}
           password: ${{ secrets.O2SWITCH_PASSWORD }}
           key: ${{ secrets.O2SWITCH_SSH_KEY }}
-          port: ${{ secrets.O2SWITCH_PORT || 22 }}
+          passphrase: ${{ secrets.O2SWITCH_SSH_PASSPHRASE }}
+          port: ${{ secrets.O2SWITCH_PORT }}
+          timeout: 60s
+          command_timeout: 10m
           script: |
             set -e
             echo ">> PATH=${{ secrets.O2SWITCH_PATH }}"
