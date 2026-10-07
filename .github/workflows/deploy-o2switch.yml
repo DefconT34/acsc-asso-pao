@@ -14,8 +14,8 @@ jobs:
     name: CI checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: npm
@@ -29,24 +29,43 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Node for archive sanity check
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: npm
       - run: npm ci
       - run: npm run check
 
-      # 1) Copie fichiers vers o2switch en SSH/SCP (sans node_modules/database.db/.env)
-      # Auth: par defaut password (o2switch). Pour cle SSH, remplace password par key.
+      - name: Validate secrets (diagnostic - ne leak jamais les valeurs)
+        run: |
+          echo "Host: $([ -n '${{ secrets.O2SWITCH_HOST }}' ] && echo SET || echo MISSING)"
+          echo "User: $([ -n '${{ secrets.O2SWITCH_USER }}' ] && echo SET || echo MISSING)"
+          echo "Password: $([ -n '${{ secrets.O2SWITCH_PASSWORD }}' ] && echo SET || echo EMPTY - normal si cle SSH)"
+          echo "SSH_KEY: $([ -n '${{ secrets.O2SWITCH_SSH_KEY }}' ] && echo SET || echo EMPTY - normal si password)"
+          echo "Port: ${{ secrets.O2SWITCH_PORT || '22 (default)' }}"
+          echo "Path: ${{ secrets.O2SWITCH_PATH || 'MISSING !' }}"
+          echo "NodeVenv: ${{ secrets.O2SWITCH_NODEVENV || '(vide - fallback auto)' }}"
+          if [ -z "${{ secrets.O2SWITCH_HOST }}" ] || [ -z "${{ secrets.O2SWITCH_USER }}" ] || [ -z "${{ secrets.O2SWITCH_PATH }}" ]; then
+            echo "::error::O2SWITCH_HOST / O2SWITCH_USER / O2SWITCH_PATH manquants - GitHub > Settings > Secrets and variables > Actions"
+            exit 1
+          fi
+          if [ -z "${{ secrets.O2SWITCH_PASSWORD }}" ] && [ -z "${{ secrets.O2SWITCH_SSH_KEY }}" ]; then
+            echo "::error::Ni O2SWITCH_PASSWORD ni O2SWITCH_SSH_KEY defini - configure l'un des deux (password = mot de passe cPanel)"
+            exit 1
+          fi
+
+      # 1) Copie fichiers vers o2switch en SCP (sans node_modules/database.db/.env)
+      # o2switch cPanel = auth password par defaut. Si tu utilises une cle SSH, renseigne O2SWITCH_SSH_KEY (laisse password vide).
+      # appleboy/shuffle : si key est vide il ignore key et utilise password, et vice-versa.
       - name: SCP to o2switch
-        uses: appleboy/scp-action@master
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.O2SWITCH_HOST }}
           username: ${{ secrets.O2SWITCH_USER }}
-          # password: ${{ secrets.O2SWITCH_PASSWORD }}
+          password: ${{ secrets.O2SWITCH_PASSWORD }}
           key: ${{ secrets.O2SWITCH_SSH_KEY }}
           port: ${{ secrets.O2SWITCH_PORT || 22 }}
           source: "server.js,server.o2switch.js,package.json,package-lock.json,public/**,.htaccess,ecosystem.config.example.js"
@@ -54,14 +73,15 @@ jobs:
           overwrite: true
           strip_components: 0
           rm: false
+          debug: true
 
       # 2) Sur le serveur : npm ci + restart Passenger
       - name: SSH - install & restart
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.O2SWITCH_HOST }}
           username: ${{ secrets.O2SWITCH_USER }}
-          # password: ${{ secrets.O2SWITCH_PASSWORD }}
+          password: ${{ secrets.O2SWITCH_PASSWORD }}
           key: ${{ secrets.O2SWITCH_SSH_KEY }}
           port: ${{ secrets.O2SWITCH_PORT || 22 }}
           script: |
