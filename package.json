@@ -1,0 +1,25 @@
+{
+  "name": "acsc-asso-pao",
+  "version": "8.6.0",
+  "description": "ACSC Asso Pao - Gestion frais déduits par site",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "check": "node --check server.js && node --check server.o2switch.js && node --check public/sw.js && node --check public/js/01-core.js && node --check public/js/02-storage.js && node --check public/js/03-sites.js && node --check public/js/04-personnes.js && node --check public/js/05-calcul.js && node --check public/js/06-actions.js && node --check public/js/07-historique.js && node --check public/js/07-hist2.js && node --check public/js/08-projet-state.js && node --check public/js/08-ui.js && node --check public/js/09-dashboard.js && node --check public/js/10-import.js",
+    "health": "node -e \"fetch('http://localhost:'+(process.env.PORT||3000)+'/api/health').then(r=>r.text()).then(t=>console.log(t)).catch(e=>{console.error(e);process.exit(1)})\""
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.7.4",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.5.1",
+    "helmet": "^7.1.0",
+    "pdfkit": "^0.20.2",
+    "sqlite3": "^5.1.7"
+  },
+  "engines": {
+    "node": "22.x"
+  }
+}

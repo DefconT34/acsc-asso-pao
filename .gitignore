@@ -1,0 +1,46 @@
+# ACSC Asso Pao - gitignore durci
+verif*.js
+checkA.js
+dump*.js
+fix*.js
+p0*.js
+patch*.js
+pf*.js
+repair*.js
+pack8*.js
+overwrite-hist.js
+test-projets.js
+b*.js
+c1.js
+step*.js
+hotfix.js
+rebuild*.js
+
+# DB & secrets
+database.db
+database.db.*
+*.db
+*.sqlite
+.env
+.env.*
+!.env.example
+
+# Deploiement o2switch
+passenger_wsgi.py
+.htaccess.bak
+
+# Build / deps
+.tmp/
+node_modules/
+public/public.zip
+
+# PDF genere (garde source si besoin)
+# public/*.pdf  -> on garde le PDF PRO
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
+npm-debug.log*

@@ -1,0 +1,15 @@
+# A copier/adapter sur o2switch si besoin de forcer HTTPS ou fallback SPA
+# Le setup Node.js gere deja le fallback. Depose ce fichier au cas ou tu sers aussi en statique.
+
+<IfModule mod_rewrite.c>
+RewriteEngine On
+# Force HTTPS (optionnel - cPanel > Domaines > Force HTTPS fait pareil)
+RewriteCond %{HTTPS} !=on
+RewriteCond %{HTTP:X-Forwarded-Proto} !https
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+# SPA fallback: si le fichier n'existe pas et que ce n'est pas /api, servir index.html
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/api/
+RewriteRule ^ public/index.html [L]
+</IfModule>

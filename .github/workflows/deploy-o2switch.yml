@@ -1,0 +1,117 @@
+name: Deploy o2switch (SSH)
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-o2switch
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: CI checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: node --check server.o2switch.js
+
+  deploy:
+    name: Deploy via SSH
+    needs: ci
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node for archive sanity check
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+
+      # 1) Copie fichiers vers o2switch en SSH/SCP (sans node_modules/database.db/.env)
+      - name: SCP to o2switch
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.O2SWITCH_HOST }}
+          username: ${{ secrets.O2SWITCH_USER }}
+          password: ${{ secrets.O2SWITCH_PASSWORD }}
+          # Si tu utilises une cle SSH au lieu du mot de passe, commente password et decommente key+port :
+          # key: ${{ secrets.O2SWITCH_SSH_KEY }}
+          port: ${{ secrets.O2SWITCH_PORT || 22 }}
+          source: "server.js,server.o2switch.js,package.json,package-lock.json,public/**,.htaccess,ecosystem.config.example.js"
+          target: "${{ secrets.O2SWITCH_PATH }}"
+          overwrite: true
+          strip_components: 0
+          rm: false
+
+      # 2) Sur le serveur : npm ci + restart Passenger
+      - name: SSH - install & restart
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.O2SWITCH_HOST }}
+          username: ${{ secrets.O2SWITCH_USER }}
+          #password: ${{ secrets.O2SWITCH_PASSWORD }}
+          key: ${{ secrets.O2SWITCH_SSH_KEY }}
+          port: ${{ secrets.O2SWITCH_PORT || 22 }}
+          script: |
+            set -e
+            echo ">> PATH=${{ secrets.O2SWITCH_PATH }}"
+            echo ">> NODEVENV=${{ secrets.O2SWITCH_NODEVENV }}"
+            # Active l'env Node de l'app (obligatoire o2switch)
+            if [ -n "${{ secrets.O2SWITCH_NODEVENV }}" ] && [ -f "${{ secrets.O2SWITCH_NODEVENV }}/bin/activate" ]; then
+              source "${{ secrets.O2SWITCH_NODEVENV }}/bin/activate"
+            elif [ -f "$HOME/nodevenv/${{ secrets.O2SWITCH_PATH }}/22/bin/activate" ]; then
+              source "$HOME/nodevenv/${{ secrets.O2SWITCH_PATH }}/22/bin/activate"
+            elif [ -f "/opt/alt/alt-nodejs22/enable" ]; then
+              source /opt/alt/alt-nodejs22/enable
+            fi
+            node -v
+            npm -v
+            cd "${{ secrets.O2SWITCH_PATH }}"
+            mkdir -p "$HOME/acsc-data"
+            # Ne jamais ecraser la DB prod si elle est liee via DB_PATH
+            npm ci --omit=dev
+            mkdir -p tmp
+            touch tmp/restart.txt
+            echo ">> restart.txt touche - Passenger va redemarrer (10-20s)"
+            # Alternative cPanel si dispo (ne bloque pas si echec)
+            if command -v cloudlinux-selector >/dev/null 2>&1; then
+              cloudlinux-selector restart --json --interpreter nodejs --app-root "$HOME/${{ secrets.O2SWITCH_PATH }}" || true
+            fi
+            sleep 3
+            curl -sk https://127.0.0.1:${PORT:-3000}/api/health || curl -sk https://localhost:${PORT:-3000}/api/health || echo "health local skip"
+            echo "Deploy OK - teste https://${{ secrets.O2SWITCH_HOST }}/api/health depuis l'exterieur"
+
+# --- Variante FTP (si SSH bloque sur o2switch) : remplace les 2 steps ci-dessus par : ---
+#      - name: Deploy via FTP
+#        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+#        with:
+#          server: ${{ secrets.O2SWITCH_HOST }}
+#          username: ${{ secrets.O2SWITCH_USER }}
+#          password: ${{ secrets.O2SWITCH_PASSWORD }}
+#          port: 21
+#          protocol: ftp
+#          local-dir: ./
+#          server-dir: ${{ secrets.O2SWITCH_PATH }}/
+#          exclude: |
+#            **/.git*
+#            **/.github/**
+#            **/node_modules/**
+#            **/database.db**
+#            **/database.db-*
+#            **/.env
+#            **/*.log
+#            **/acsc-asso-pao-v*.zip
+#            **/verify_*.js
+#            **/test_live.js

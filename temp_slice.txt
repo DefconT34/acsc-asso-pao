@@ -1,0 +1,123 @@
+err, row) => err ? reject(err) : resolve(row));
+  });
+}
+function dbAll(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => err ? reject(err) : resolve(rows));
+  });
+}
+function dbClose() {
+  return new Promise((resolve, reject) => {
+    db.close(err => err ? reject(err) : resolve());
+  });
+}
+
+async function initDatabase() {
+  await dbExec(`
+    PRAGMA journal_mode = WAL;
+    PRAGMA foreign_keys = ON;
+
+    CREATE TABLE IF NOT EXISTS settings(
+      id INTEGER PRIMARY KEY CHECK(id=1),
+      gerant TEXT DEFAULT 'Président',
+      devise TEXT DEFAULT 'USD',
+      taux REAL DEFAULT 615,
+      pays TEXT DEFAULT 'us',
+      factureTransit REAL DEFAULT 48000,
+      poidsTotal REAL DEFAULT 3.5
+    );
+
+    CREATE TABLE IF NOT EXISTS personnes(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nom TEXT,
+      montant REAL,
+      quantite INTEGER
+    );
+
+    CREATE TABLE IF NOT EXISTS historique(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT,
+      gerant TEXT,
+      totalFinal TEXT,
+      data TEXT
+    );
+
+    INSERT OR IGNORE INTO settings(id) VALUES(1);
+  `);
+
+  // Migrations sécurisées : SQLite renvoie une erreur si la colonne existe déjà.
+  // On l'ignore volontairement.
+  const migrations = [
+    `ALTER TABLE settings ADD COLUMN sites TEXT`,
+    `ALTER TABLE personnes ADD COLUMN site TEXT DEFAULT 'site1'`,
+    `ALTER TABLE personnes ADD COLUMN telephone TEXT DEFAULT ''`,
+    `ALTER TABLE personnes ADD COLUMN statut TEXT DEFAULT 'impaye'`,
+    `ALTER TABLE personnes ADD COLUMN datePaiement TEXT DEFAULT ''`,
+    `ALTER TABLE personnes ADD COLUMN montantPaye REAL DEFAULT 0`,
+    `ALTER TABLE historique ADD COLUMN titre TEXT DEFAULT ''`,
+    `ALTER TABLE historique ADD COLUMN note TEXT DEFAULT ''`,
+    `ALTER TABLE historique ADD COLUMN code TEXT DEFAULT ''`,
+    `ALTER TABLE historique ADD COLUMN statutProjet TEXT DEFAULT 'en_cours'`,
+    `ALTER TABLE settings ADD COLUMN pin TEXT DEFAULT ''`,
+    `ALTER TABLE personnes ADD COLUMN projetCode TEXT DEFAULT ''`,
+    `ALTER TABLE personnes ADD COLUMN lienProduit TEXT DEFAULT ''`,
+    `ALTER TABLE personnes ADD COLUMN capture TEXT DEFAULT ''`
+  ];
+  for (const sql of migrations) {
+    try { await dbRun(sql); } catch (_) {}
+  }
+
+  const indexes = [
+    `CREATE INDEX IF NOT EXISTS idx_personnes_site ON personnes(site)`,
+    `CREATE INDEX IF NOT EXISTS idx_personnes_statut ON personnes(statut)`,
+    `CREATE INDEX IF NOT EXISTS idx_personnes_nom ON personnes(nom)`,
+    `CREATE INDEX IF NOT EXISTS idx_hist_date ON historique(date)`,
+    `CREATE INDEX IF NOT EXISTS idx_hist_code ON historique(code)`,
+    `CREATE INDEX IF NOT EXISTS idx_hist_statut ON historique(statutProjet)`,
+    `CREATE INDEX IF NOT EXISTS idx_personnes_projet ON personnes(projetCode)`
+  ];
+  for (const sql of indexes) {
+    try { await dbRun(sql); } catch (_) {}
+  }
+
+  let settings = await dbGet(`SELECT * FROM settings WHERE id=1`);
+  let sites = [];
+  try { sites = JSON.parse(settings?.sites || '[]'); } catch (_) { sites = []; }
+
+  // Ancien format / valeur vide
+  if (!Array.isArray(sites) || sites.length === 0 || sites[0]?.p !== undefined) {
+    const defaut = JSON.stringify([
+      { id: 'site1', label: 'Cigars.com', devise: 'USD', taux: 615, sousTotal: 500, total: 540 },
+      { id: 'site2', label: 'FamousSmoke', devise: 'USD', taux: 615, sousTotal: 300, total: 315 },
+      { id: 'site3', label: 'Cigars-of-Cuba', devise: 'EUR', taux: 660, sousTotal: 400, total: 425 }
+    ]);
+    await dbRun(`UPDATE settings SET sites=? WHERE id=1`, [defaut]);
+  }
+
+  // Backfill codes projets existants
+  try {
+    const rows = await dbAll(`SELECT id FROM historique WHERE code IS NULL OR code=''`);
+    for (const r of rows) {
+      const code = `ACSC-${new Date().getFullYear()}-${String(r.id).padStart(4, '0')}`;
+      try {
+        await dbRun(`UPDATE historique SET code=?, statutProjet='en_cours' WHERE id=?`, [code, r.id]);
+      } catch (_) {}
+    }
+  } catch (_) {}
+
+  console.log('✅ Base SQLite initialisée');
+}
+// VALIDATION / HELPERS
+function valPersonne(b) {
+  if (!b.nom || String(b.nom).trim().length < 2) return 'Nom trop court (min 2)';
+  if (isNaN(b.montant) || Number(b.montant) <= 0) return 'Montant doit etre > 0';
+  if (!Number.isInteger(Number(b.quantite)) || Number(b.quantite) < 1) return 'Quantite entiere >=1';
+  if (b.telephone && String(b.telephone).replace(/\D/g, '').length < 8) return 'Telephone invalide';
+  if (!b.site) return 'Site requis';
+  if (b.lienProduit && String(b.lienProduit).trim() && !/^https?:\/\/.+/i.test(String(b.lienProduit).trim())) return 'Lien produit invalide (http(s)://)';
+  if (b.capture && String(b.capture).length > 1.8*1024*1024) return 'Capture trop volumineuse (max ~1.5Mo)';
+  return null;
+}
+function valSettings(b) {
+  if (isNaN(b.taux) || Number(b.taux) <= 0) return 'Taux invalide';
+  if (isN

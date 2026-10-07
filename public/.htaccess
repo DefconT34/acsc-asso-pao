@@ -1,0 +1,33 @@
+# ACSC v8.4 - protection o2switch / Apache (durci)
+<FilesMatch "^(database\.db.*|\.env.*|.*\.sqlite.*|.*\.db.*)$">
+  Require all denied
+</FilesMatch>
+# Bloque env & secrets meme si renommés
+<FilesMatch "^\.env">
+  Require all denied
+</FilesMatch>
+Options -Indexes
+# Headers securite si mod_headers dispo (helmet fait deja cote Node, ceinture en plus)
+<IfModule mod_headers.c>
+  Header always set X-Frame-Options "DENY"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+</IfModule>
+# Health o2switch: /health doit repondre vite (proxy Passenger)
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # Force HTTPS si derriere proxy o2switch (X-Forwarded-Proto)
+  RewriteCond %{HTTP:X-Forwarded-Proto} !https
+  RewriteCond %{REQUEST_URI} !^/health
+  RewriteCond %{REQUEST_URI} !^/api/health
+  # (desactive par defaut, decommente si domaine final connu)
+  # RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+</IfModule>
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 1 day"
+  ExpiresByType application/javascript "access plus 1 day"
+  ExpiresByType image/svg+xml "access plus 1 day"
+  ExpiresByType application/json "access plus 0 seconds"
+</IfModule>

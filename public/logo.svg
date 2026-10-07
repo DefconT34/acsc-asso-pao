@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 90" role="img" aria-label="Premium Cigars &amp; Tobacco">
+  <rect width="340" height="90" rx="14" fill="#0A0A0A"/>
+  <!-- Premium script -->
+  <text x="170" y="52" text-anchor="middle" font-family="'Brush Script MT','Segoe Script','Snell Roundhand',cursive" font-size="54" font-style="italic" fill="#FFFFFF" font-weight="400">Premium</text>
+  <!-- gold line -->
+  <rect x="22" y="58" width="296" height="2.5" rx="1.25" fill="#C9A86A"/>
+  <!-- CIGARS & TOBACCO -->
+  <text x="170" y="76" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="13" letter-spacing="3.2" fill="#C9A86A" font-weight="700">CIGARS &amp; TOBACCO</text>
+</svg>

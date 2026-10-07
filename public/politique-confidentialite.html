@@ -1,0 +1,15 @@
+<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Politique de confidentialité — ACSC Asso Pao</title><link rel="icon" href="logo.svg"><style>body{font-family:Inter,system-ui,sans-serif;max-width:780px;margin:0 auto;padding:32px 20px;color:#0A0A0A;line-height:1.6}h1{font-size:1.6rem;font-weight:900}h2{margin-top:28px;font-size:1.15rem;color:#0F2A44}a{color:#0F2A44;text-decoration:underline}.card{background:#F8F9FC;border:1px solid #e2e8f0;border-radius:16px;padding:16px;margin:16px 0}small{color:#64748b}</style></head><body>
+<h1>Politique de confidentialité — ACSC Asso Pao v8.6</h1>
+<small>Mise à jour : 4 octobre 2026 — Abidjan Cigar Social Club</small>
+<div class="card"><strong>Résumé :</strong> ACSC ne collecte aucune donnée personnelle côté serveur sans consentement. Les projets sont stockés localement (SQLite serveur) et dans votre navigateur (localStorage) uniquement pour le fonctionnement de l'app. Aucun tracker publicitaire.</div>
+<h2>1. Responsable de traitement</h2><p>ACSC Asso Pao — contact via l'app (Gérant). Hébergement : o2switch (France, données UE).</p>
+<h2>2. Données traitées</h2><ul><li><strong>Projets / personnes / sites :</strong> saisis par vous, stockés en base SQLite serveur si vous utilisez /api/*, sinon en localStorage navigateur.</li><li><strong>Email notification teaser :</strong> si vous saisissez un email dans le teaser, il est stocké en <code>localStorage.acsc_notify</code> uniquement sur votre appareil, jamais envoyé serveur sans action explicite. Purge auto 13 mois.</li><li><strong>ElevenLabs TTS :</strong> texte envoyé à api.elevenlabs.io uniquement quand vous activez la voix. Clé serveur prioritaire <code>ELEVEN_API_KEY</code> (proxy /api/eleven/*).</li><li><strong>Technique :</strong> logs serveur (IP, route, horodatage) pour sécurité/rate-limit (300 req/15min global, 10/15min PIN, 30/h TTS), conservés 12 mois max.</li></ul>
+<h2>3. Base légale</h2><p>Exécution du service demandé (art.6-1-b RGPD) + intérêt légitime sécurité + consentement pour email teaser / cookies.</p>
+<h2>4. Durées</h2><ul><li>Projets DB : jusqu'à suppression par le gérant.</li><li>acsc_notify : 13 mois max puis purge auto.</li><li>Logs / rate-limit : mémoire vive + rotation 12 mois.</li></ul>
+<h2>5. Vos droits</h2><p>Accès, rectification, effacement, opposition : utilisez les fonctions Supprimer / Purger dans l'app ou écrivez au gérant. Réclamation CNIL.</p>
+<h2>6. Cookies / localStorage</h2><p>Aucun cookie traceur. Seul localStorage fonctionnel (historique, préférences, acsc_notify, acsc_consent). Bandeau consentement léger, pas de pub.</p>
+<h2>7. Sécurité</h2><p>PIN hashé bcrypt, helmet CSP/HSTS, CORS restreint ALLOWED_ORIGINS, WAL+FK, proxy TTS no-store.</p>
+<h2>8. Sous-traitants</h2><p>o2switch (hébergement), ElevenLabs (TTS optionnel). Pas de revente de données.</p>
+<p><a href="/">← Retour ACSC</a> · <a href="teaser.html">Teaser</a></p>
+<small>Modèle RGPD simplifié — adaptez avec votre juriste si collecte étendue.</small>
+</body></html>

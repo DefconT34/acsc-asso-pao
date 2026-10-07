@@ -1,0 +1,6 @@
+# Racine ACSC - bloque accès direct aux DB si quelqu'un place database.db à la racine
+<FilesMatch "^(database\.db.*|.*\.db.*|\.env)$">
+  Require all denied
+</FilesMatch>
+Options -Indexes
+# Ne pas interférer avec Passenger - pas de rewrite SPA ici (géré par Node)

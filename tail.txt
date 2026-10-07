@@ -1,0 +1,33 @@
+﻿app.patch('/api/personnes/:id/statut', async (req, res) => {
+  try {
+    const { statut, datePaiement, montantPaye } = req.body;
+    await dbRun(`UPDATE personnes SET statut=?, datePaiement=?, montantPaye=? WHERE id=?`, [statut || 'impaye', datePaiement || '', Number(montantPaye) || 0, req.params.id]);
+    res.json({ ok: 1 });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.delete('/api/personnes/:id', async (req, res) => {
+  try { await dbRun(`DELETE FROM personnes WHERE id=?`, [req.params.id]); res.json({ ok: 1 }); } catch (e) { res.status(500).json({ error: e.message }); }
+});
+// API HISTORIQUE / PROJETS
+app.get('/api/historique', async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page) || 1); const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20)); const q = (req.query.q || '').trim(); const offset = (page - 1) * limit;
+    let whereSql = ''; let params = []; const statutQ = req.query.statut || ''; const gerantQ = (req.query.gerant || '').trim();
+    if (q && statutQ) { whereSql = `WHERE (gerant LIKE ? OR totalFinal LIKE ? OR titre LIKE ? OR note LIKE ? OR date LIKE ? OR code LIKE ?) AND statutProjet=?`; params = [`%${q}%`,`%${q}%`,`%${q}%`,`%${q}%`,`%${q}%`,`%${q}%`,statutQ]; }
+    else if (q) { whereSql = `WHERE (gerant LIKE ? OR totalFinal LIKE ? OR titre LIKE ? OR note LIKE ? OR date LIKE ? OR code LIKE ?)`; params = [`%${q}%`,`%${q}%`,`%${q}%`,`%${q}%`,`%${q}%`,`%${q}%`]; }
+    else if (statutQ) { whereSql = `WHERE statutProjet=?`; params = [statutQ]; }
+    if (gerantQ) { const clause = `gerant LIKE ?`; const param = `%${gerantQ}%`; if (whereSql) { whereSql += ` AND ${clause}`; params.push(param); } else { whereSql = `WHERE ${clause}`; params = [param]; } }
+    if (req.query.all) return res.json(await dbAll(`SELECT * FROM historique ${whereSql} ORDER BY id DESC`, params));
+    const totalRow = await dbGet(`SELECT COUNT(*) AS c FROM historique ${whereSql}`, params); const total = Number(totalRow?.c || 0);
+    const rows = await dbAll(`SELECT * FROM historique ${whereSql} ORDER BY id DESC LIMIT ? OFFSET ?`, [...params, limit, offset]);
+    res.json({ rows, total, page, limit, pages: Math.ceil(total / limit) });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.get('/api/projets', async (req, res) => {
+  try {
+    const q = (req.query.q || '').trim(); const statut = req.query.statut || ''; let where = ''; let params = [];
+    if (q && statut) { where = `WHERE (titre LIKE ? OR code LIKE ? OR note LIKE ?) AND statutProjet=?`; params = [`%${q}%`,`%${q}%`,`%${q}%`,statut]; }
+    else if (q) { where = `WHERE (titre LIKE ? OR code LIKE ? OR note LIKE ?)`; params = [`%${q}%`,`%${q}%`,`%${q}%`]; }
+    else if (statut) { where = `WHERE statutProjet=?`; params = [statut]; }
+    res.json(await dbAll(`SELECT id,code,titre,note,statutProjet,date,gerant,totalFinal FROM historique ${where} ORDER BY id DESC`, params));
+  } catch (e) { res.
