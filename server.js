@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
@@ -163,10 +163,10 @@ async function initDatabase() {
 
   let settings = await dbGet(`SELECT * FROM settings WHERE id=1`);
   let sites = [];
-  try { sites = JSON.parse(settings?.sites || '[]'); } catch (_) { sites = []; }
+  try { sites = JSON.parse((settings && settings.sites) || '[]'); } catch (_) { sites = []; }
 
   // Ancien format / valeur vide
-  if (!Array.isArray(sites) || sites.length === 0 || sites[0]?.p !== undefined) {
+  if (!Array.isArray(sites) || sites.length === 0 || (sites[0] && sites[0].p) !== undefined) {
     const defaut = JSON.stringify([
       { id: 'site1', label: 'Cigars.com', devise: 'USD', taux: 615, sousTotal: 500, total: 540 },
       { id: 'site2', label: 'FamousSmoke', devise: 'USD', taux: 615, sousTotal: 300, total: 315 },
@@ -210,8 +210,8 @@ async function genCodeProjet() {
   try {
     const row = await dbGet(`SELECT code FROM historique WHERE code LIKE ? ORDER BY id DESC LIMIT 1`, [`ACSC-${y}-%`]);
     let seq = 1;
-    if (row?.code) { const m = row.code.match(/-(\d+)$/); if (m) seq = parseInt(m[1], 10) + 1; }
-    else { const c = await dbGet(`SELECT COUNT(*) AS n FROM historique WHERE code LIKE ?`, [`ACSC-${y}-%`]); seq = Number(c?.n || 0) + 1; }
+    if ((row && row.code)) { const m = row.code.match(/-(\d+)$/); if (m) seq = parseInt(m[1], 10) + 1; }
+    else { const c = await dbGet(`SELECT COUNT(*) AS n FROM historique WHERE code LIKE ?`, [`ACSC-${y}-%`]); seq = Number((c && c.n) || 0) + 1; }
     return `ACSC-${y}-${String(seq).padStart(4, '0')}`;
   } catch { return `ACSC-${y}-${String(Date.now()).slice(-4)}`; }
 }
@@ -235,7 +235,7 @@ app.post('/api/settings', async (req, res) => {
 app.post('/api/pin/check', pinLimiter, async (req, res) => {
   try {
     const s = await dbGet(`SELECT pin FROM settings WHERE id=1`);
-    if (!s?.pin) return res.json({ ok: 1, needPin: false });
+    if (!(s && s.pin)) return res.json({ ok: 1, needPin: false });
     const ok = bcrypt.compareSync(String(req.body.pin || ''), String(s.pin));
     if (ok) return res.json({ ok: 1, needPin: true, valid: true });
     return res.status(401).json({ ok: 0, valid: false });
@@ -265,7 +265,7 @@ app.get('/api/personnes', async (req, res) => {
       return res.json(await dbAll(`SELECT * FROM personnes ${whereSql} ${orderSql}`, params));
     }
     const totalRow = await dbGet(`SELECT COUNT(*) as c FROM personnes ${whereSql}`, params);
-    const total = Number(totalRow?.c || 0);
+    const total = Number((totalRow && totalRow.c) || 0);
     const offset = (page - 1) * limit;
     const rows = await dbAll(`SELECT * FROM personnes ${whereSql} ${orderSql} LIMIT ? OFFSET ?`, [...params, limit, offset]);
     res.json({ rows, total, page, limit, pages: Math.ceil(total / limit) });
@@ -307,7 +307,7 @@ app.get('/api/historique', async (req, res) => {
     else if (statutQ) { whereSql = `WHERE statutProjet=?`; params = [statutQ]; }
     if (gerantQ) { const clause = `gerant LIKE ?`; const param = `%${gerantQ}%`; if (whereSql) { whereSql += ` AND ${clause}`; params.push(param); } else { whereSql = `WHERE ${clause}`; params = [param]; } }
     if (req.query.all) return res.json(await dbAll(`SELECT * FROM historique ${whereSql} ORDER BY id DESC`, params));
-    const totalRow = await dbGet(`SELECT COUNT(*) AS c FROM historique ${whereSql}`, params); const total = Number(totalRow?.c || 0);
+    const totalRow = await dbGet(`SELECT COUNT(*) AS c FROM historique ${whereSql}`, params); const total = Number((totalRow && totalRow.c) || 0);
     const rows = await dbAll(`SELECT * FROM historique ${whereSql} ORDER BY id DESC LIMIT ? OFFSET ?`, [...params, limit, offset]);
     res.json({ rows, total, page, limit, pages: Math.ceil(total / limit) });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -460,7 +460,7 @@ app.post('/api/commande', async (req,res)=>{
     }
     const digits=telephone.replace(/\D/g,'');
     const cnt=await dbGet("SELECT COUNT(*) as c FROM personnes WHERE projetCode=? AND replace(replace(replace(telephone,' ',''),'-',''),'+','') LIKE ?", [projetCode, '%'+digits.slice(-8)]);
-    if(Number(cnt?.c||0)+items.length>3) return res.status(429).json({error:'Limite 3 commandes par tel/projet'});
+    if(Number((cnt && cnt.c)||0)+items.length>3) return res.status(429).json({error:'Limite 3 commandes par tel/projet'});
     const ids=[];
     for(let it of items){
       const err=valPersonne({nom, montant:Number(it.montant), quantite:Number(it.quantite), site:String(it.site).trim(), telephone, statut:'impaye', lienProduit:it.lienProduit||'', capture:it.capture||''});
