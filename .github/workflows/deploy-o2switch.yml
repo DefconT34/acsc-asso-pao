@@ -1,4 +1,4 @@
-name: Deploy o2switch (SSH)
+name: Deploy o2switch (FTP)
 
 on:
   push:
@@ -24,7 +24,7 @@ jobs:
       - run: node --check server.o2switch.js
 
   deploy:
-    name: Deploy via SSH
+    name: Deploy via FTP
     needs: ci
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
@@ -39,72 +39,68 @@ jobs:
       - run: npm ci
       - run: npm run check
 
-      - name: Validate secrets (diagnostic - ne leak jamais les valeurs)
+      - name: Validate secrets
         run: |
           echo "Host: $([ -n '${{ secrets.O2SWITCH_HOST }}' ] && echo SET || echo MISSING)"
           echo "User: $([ -n '${{ secrets.O2SWITCH_USER }}' ] && echo SET || echo MISSING)"
-          echo "Password: $([ -n '${{ secrets.O2SWITCH_PASSWORD }}' ] && echo SET || echo EMPTY - normal si cle SSH sans password cPanel)"
-          echo "SSH_KEY: $([ -n '${{ secrets.O2SWITCH_SSH_KEY }}' ] && echo SET || echo EMPTY - normal si auth par password)"
-          echo "SSH_PASSPHRASE: $([ -n '${{ secrets.O2SWITCH_SSH_PASSPHRASE }}' ] && echo SET || echo EMPTY - requis seulement si cle chiffre)"
-          echo "Port: ${{ secrets.O2SWITCH_PORT || '22 (default)' }}"
+          echo "Password: $([ -n '${{ secrets.O2SWITCH_PASSWORD }}' ] && echo SET || echo MISSING)"
+          echo "Port: ${{ secrets.O2SWITCH_PORT || '21 (FTP default)' }}"
           echo "Path: ${{ secrets.O2SWITCH_PATH || 'MISSING !' }}"
-          echo "NodeVenv: ${{ secrets.O2SWITCH_NODEVENV || '(vide - fallback auto)' }}"
+          echo "NodeVenv: ${{ secrets.O2SWITCH_NODEVENV || '(vide)' }}"
           if [ -z "${{ secrets.O2SWITCH_HOST }}" ] || [ -z "${{ secrets.O2SWITCH_USER }}" ] || [ -z "${{ secrets.O2SWITCH_PATH }}" ]; then
-            echo "::error::O2SWITCH_HOST / O2SWITCH_USER / O2SWITCH_PATH manquants - GitHub > Settings > Secrets and variables > Actions"
+            echo "::error::O2SWITCH_HOST / USER / PATH manquants"
             exit 1
           fi
-          if [ -z "${{ secrets.O2SWITCH_PASSWORD }}" ] && [ -z "${{ secrets.O2SWITCH_SSH_KEY }}" ]; then
-            echo "::error::Ni O2SWITCH_PASSWORD ni O2SWITCH_SSH_KEY defini - configure l'un des deux (password = mot de passe cPanel le plus simple sur o2switch)"
-            exit 1
-          fi
-          # Format HOST : doit etre IP ou hostname NU sans https:// ni :port ni /
           HOST='${{ secrets.O2SWITCH_HOST }}'
           if echo "$HOST" | grep -qE '^https?://|/|:'; then
-            echo "::error::O2SWITCH_HOST='$HOST' invalide - mets IP nue (109.234.167.160) ou hostname nu (s109.o2switch.net) SANS https:// ni :port ni /"
-            exit 1
-          fi
-          if echo "$HOST" | grep -q ' '; then
-            echo "::error::O2SWITCH_HOST contient un espace - supprime l'espace dans le Secret"
+            echo "::error::HOST invalide - mets IP nue (109.234.167.160) ou hostname nu SANS https:// ni :port"
             exit 1
           fi
 
-      - name: Check DNS (diagnose no such host)
+      - name: Check DNS & FTP reachability
         run: |
           HOST='${{ secrets.O2SWITCH_HOST }}'
           echo "nslookup $HOST ..."
-          if ! nslookup "$HOST" 2>&1; then
-            echo "::warning::nslookup echoue - host non resolvable depuis GitHub runner"
-            getent hosts "$HOST" 2>&1 || echo "::error::DNS FAIL - verifie O2SWITCH_HOST dans cPanel > General Information > Shared IP / Server Name"
-          fi
-          echo "nc -zv test (port ${{ secrets.O2SWITCH_PORT || 22 }}) ..."
-          timeout 8 bash -c "cat < /dev/null > /dev/tcp/$HOST/${{ secrets.O2SWITCH_PORT || 22 }}" && echo "TCP OK" || echo "::warning::TCP connect echoue - firewall o2switch bloque peut-etre le port ${{ secrets.O2SWITCH_PORT || 22 }} (o2switch mutualise bloque souvent le 22, utilise FTP port 21)"
+          nslookup "$HOST" 2>&1 || echo "::warning::DNS fail - verifie cPanel Shared IP"
+          echo "TCP test $HOST:21 ..."
+          timeout 8 bash -c "cat < /dev/null > /dev/tcp/$HOST/21" && echo "TCP 21 OK" || echo "::warning::TCP 21 fail - verifie HOST/PORT"
+          echo "TCP test $HOST:22 ..."
+          timeout 8 bash -c "cat < /dev/null > /dev/tcp/$HOST/22" && echo "TCP 22 OK" || echo "TCP 22 ferme - normal sur mutualise"
 
-      # 1) Copie fichiers vers o2switch en SCP (sans node_modules/database.db/.env)
-      # DIAGNOSTIC TON LOG 16:26 :
-      #   - "no key found" = O2SWITCH_SSH_KEY est defini mais VIDE ou NON-PEM (pas de -----BEGIN...). La presence d'une cle invalide fait echouer meme si password est bon.
-      #   - "dial tcp ... i/o timeout" = port/host injoignable depuis GitHub (firewall CSF o2switch ou mauvais O2SWITCH_PORT).
-      # FIX IMMEDIAT : supprime O2SWITCH_SSH_KEY + O2SWITCH_SSH_PASSPHRASE si tu veux auth par password (recommande o2switch).
-      # Si tu veux garder la cle : mets la cle PRIVEE complete (-----BEGIN OPENSSH PRIVATE KEY----- ... -----END...) SANS passphrase, ou avec passphrase + O2SWITCH_SSH_PASSPHRASE.
-      - name: SCP to o2switch
-        uses: appleboy/scp-action@v0.1.7
+      - name: Prepare restart marker
+        run: |
+          mkdir -p tmp
+          date -u > tmp/restart.txt
+          cat tmp/restart.txt
+
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          host: ${{ secrets.O2SWITCH_HOST }}
+          server: ${{ secrets.O2SWITCH_HOST }}
           username: ${{ secrets.O2SWITCH_USER }}
           password: ${{ secrets.O2SWITCH_PASSWORD }}
-          key: ${{ secrets.O2SWITCH_SSH_KEY }}
-          passphrase: ${{ secrets.O2SWITCH_SSH_PASSPHRASE }}
-          port: ${{ secrets.O2SWITCH_PORT || 22 }}
-          source: "server.js,server.o2switch.js,package.json,package-lock.json,public/**,.htaccess,ecosystem.config.example.js"
-          target: "${{ secrets.O2SWITCH_PATH }}"
-          overwrite: true
-          strip_components: 0
-          rm: false
-          timeout: 60s
-          command_timeout: 10m
-          debug: true
+          port: 21
+          protocol: ftp
+          local-dir: ./
+          server-dir: ${{ secrets.O2SWITCH_PATH }}/
+          log-level: verbose
+          state-name: .ftp-deploy-sync-state.json
+          exclude: |
+            **/.git*
+            **/.github/**
+            **/node_modules/**
+            **/database.db
+            **/database.db-*
+            **/.env
+            **/*.log
+            **/acsc-asso-pao-v*.zip
+            **/verify_*.js
+            **/test_live.js
+            **/O2SWITCH_ODISSEY.txt
+            **/.ftp-deploy-sync-state.json
 
-      # 2) Sur le serveur : npm ci + restart Passenger
-      - name: SSH - install & restart
+      - name: SSH install best-effort
+        continue-on-error: true
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.O2SWITCH_HOST }}
@@ -113,13 +109,11 @@ jobs:
           key: ${{ secrets.O2SWITCH_SSH_KEY }}
           passphrase: ${{ secrets.O2SWITCH_SSH_PASSPHRASE }}
           port: ${{ secrets.O2SWITCH_PORT || 22 }}
-          timeout: 60s
-          command_timeout: 10m
+          timeout: 15s
+          command_timeout: 5m
           script: |
             set -e
             echo ">> PATH=${{ secrets.O2SWITCH_PATH }}"
-            echo ">> NODEVENV=${{ secrets.O2SWITCH_NODEVENV }}"
-            # Active l'env Node de l'app (obligatoire o2switch)
             if [ -n "${{ secrets.O2SWITCH_NODEVENV }}" ] && [ -f "${{ secrets.O2SWITCH_NODEVENV }}/bin/activate" ]; then
               source "${{ secrets.O2SWITCH_NODEVENV }}/bin/activate"
             elif [ -f "$HOME/nodevenv/${{ secrets.O2SWITCH_PATH }}/22/bin/activate" ]; then
@@ -127,42 +121,22 @@ jobs:
             elif [ -f "/opt/alt/alt-nodejs22/enable" ]; then
               source /opt/alt/alt-nodejs22/enable
             fi
-            node -v
-            npm -v
+            node -v || echo "node not found"
+            npm -v || echo "npm not found"
             cd "${{ secrets.O2SWITCH_PATH }}"
             mkdir -p "$HOME/acsc-data"
-            # Ne jamais ecraser la DB prod si elle est liee via DB_PATH
-            npm ci --omit=dev
+            npm ci --omit=dev || echo "::warning::npm ci fail via SSH - faire manuellement via cPanel Terminal"
             mkdir -p tmp
             touch tmp/restart.txt
-            echo ">> restart.txt touche - Passenger va redemarrer (10-20s)"
-            # Alternative cPanel si dispo (ne bloque pas si echec)
+            echo ">> restart.txt OK"
             if command -v cloudlinux-selector >/dev/null 2>&1; then
               cloudlinux-selector restart --json --interpreter nodejs --app-root "$HOME/${{ secrets.O2SWITCH_PATH }}" || true
             fi
-            sleep 3
-            curl -sk https://127.0.0.1:${PORT:-3000}/api/health || curl -sk https://localhost:${PORT:-3000}/api/health || echo "health local skip"
-            echo "Deploy OK - teste https://${{ secrets.O2SWITCH_HOST }}/api/health depuis l'exterieur"
 
-# --- Variante FTP (si SSH bloque sur o2switch) : remplace les 2 steps ci-dessus par : ---
-#      - name: Deploy via FTP
-#        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-#        with:
-#          server: ${{ secrets.O2SWITCH_HOST }}
-#          username: ${{ secrets.O2SWITCH_USER }}
-#          password: ${{ secrets.O2SWITCH_PASSWORD }}
-#          port: 21
-#          protocol: ftp
-#          local-dir: ./
-#          server-dir: ${{ secrets.O2SWITCH_PATH }}/
-#          exclude: |
-#            **/.git*
-#            **/.github/**
-#            **/node_modules/**
-#            **/database.db**
-#            **/database.db-*
-#            **/.env
-#            **/*.log
-#            **/acsc-asso-pao-v*.zip
-#            **/verify_*.js
-#            **/test_live.js
+      - name: Post-deploy info
+        run: |
+          echo "=== FTP deploy termine ==="
+          echo "Si SSH a timeout c'est NORMAL (SSH ferme sur o2switch mutualise)"
+          echo "Si package.json a change : cPanel Terminal :"
+          echo "  cd ~/${{ secrets.O2SWITCH_PATH }} && source ~/nodevenv/${{ secrets.O2SWITCH_PATH }}/22/bin/activate && npm ci --omit=dev && touch tmp/restart.txt"
+          echo "Ou cPanel > Setup Node.js App > Run NPM Install > Restart"
