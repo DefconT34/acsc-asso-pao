@@ -40,14 +40,14 @@ jobs:
       - run: npm run check
 
       # 1) Copie fichiers vers o2switch en SSH/SCP (sans node_modules/database.db/.env)
+      # Auth: par defaut password (o2switch). Pour cle SSH, remplace password par key.
       - name: SCP to o2switch
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.O2SWITCH_HOST }}
           username: ${{ secrets.O2SWITCH_USER }}
-          password: ${{ secrets.O2SWITCH_PASSWORD }}
-          # Si tu utilises une cle SSH au lieu du mot de passe, commente password et decommente key+port :
-          # key: ${{ secrets.O2SWITCH_SSH_KEY }}
+          # password: ${{ secrets.O2SWITCH_PASSWORD }}
+          key: ${{ secrets.O2SWITCH_SSH_KEY }}
           port: ${{ secrets.O2SWITCH_PORT || 22 }}
           source: "server.js,server.o2switch.js,package.json,package-lock.json,public/**,.htaccess,ecosystem.config.example.js"
           target: "${{ secrets.O2SWITCH_PATH }}"
@@ -61,7 +61,7 @@ jobs:
         with:
           host: ${{ secrets.O2SWITCH_HOST }}
           username: ${{ secrets.O2SWITCH_USER }}
-          #password: ${{ secrets.O2SWITCH_PASSWORD }}
+          # password: ${{ secrets.O2SWITCH_PASSWORD }}
           key: ${{ secrets.O2SWITCH_SSH_KEY }}
           port: ${{ secrets.O2SWITCH_PORT || 22 }}
           script: |
