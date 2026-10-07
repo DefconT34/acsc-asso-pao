@@ -1,8 +1,0 @@
-﻿app.patch('/api/historique/:id', async (req,res) => {
-  try {
-    const id = req.params.id; const row = await dbGet(`SELECT * FROM historique WHERE id=?`, [id]); if (!row) return res.status(404).json({ error: 'not found' });
-    let { titre, note, code, statutProjet } = req.body; const newCode = code !== undefined ? String(code).trim().toUpperCase() : row.code;
-    if (newCode && !/^ACSC-\d{4}-\d{4,5}$/.test(newCode)) return res.status(400).json({ error: 'Code invalide (format ACSC-YYYY-####)' });
-    if (newCode && newCode !== row.code) { const dup = await dbGet(`SELECT id FROM historique WHERE code=? AND id!=?`, [newCode, id]); if (dup) return res.status(409).json({ error: 'Code deja utilise' }); }
-    if (statutProjet && !['en_cours','cloture'].includes(statutProjet)) statutProjet = row.statutProjet;
-    await dbRun(`UPDATE historique SET titre=?, note=?, code=?, statutProjet=?

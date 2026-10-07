@@ -1,26 +1,39 @@
 # ACSC Asso Pao - gitignore durci
 verif*.js
+verify_*.js
+verify_*.ps1
 checkA.js
 dump*.js
 fix*.js
+fix_order.js
+dedupe.js
+do_patch*.js
 p0*.js
 patch*.js
+patch_*.txt
 pf*.js
 repair*.js
 pack8*.js
 overwrite-hist.js
 test-projets.js
+test_live.js
 b*.js
 c1.js
 step*.js
 hotfix.js
 rebuild*.js
+diag_*.ps1
+run_*.ps1
+start-*.ps1
 
 # DB & secrets
 database.db
+database.db-*
 database.db.*
 *.db
 *.sqlite
+$HOME/
+\$HOME/
 .env
 .env.*
 !.env.example
@@ -29,10 +42,20 @@ database.db.*
 passenger_wsgi.py
 .htaccess.bak
 
-# Build / deps
+# Build / deps / temp artefacts
 .tmp/
+tmp/
 node_modules/
 public/public.zip
+STDOUT
+*.tmp
+tail.txt
+temp_slice.txt
+oldpatch_len.txt
+v8.5
+x.statutProjet!
+{
+{console.log*
 
 # PDF genere (garde source si besoin)
 # public/*.pdf  -> on garde le PDF PRO
