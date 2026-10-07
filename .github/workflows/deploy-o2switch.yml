@@ -59,11 +59,11 @@ jobs:
           fi
 
       # 1) Copie fichiers vers o2switch en SCP (sans node_modules/database.db/.env)
-      # o2switch cPanel = auth PASSWORD par defaut (le plus simple, pas besoin de cle).
-      # Si tu fournis O2SWITCH_SSH_KEY :
-      #   - cle SANS passphrase -> renseigne juste O2SWITCH_SSH_KEY
-      #   - cle AVEC passphrase -> renseigne O2SWITCH_SSH_KEY + O2SWITCH_SSH_PASSPHRASE
-      #   Sinon erreur "this private key is passphrase protected" (ton erreur actuelle)
+      # DIAGNOSTIC TON LOG 16:26 :
+      #   - "no key found" = O2SWITCH_SSH_KEY est defini mais VIDE ou NON-PEM (pas de -----BEGIN...). La presence d'une cle invalide fait echouer meme si password est bon.
+      #   - "dial tcp ... i/o timeout" = port/host injoignable depuis GitHub (firewall CSF o2switch ou mauvais O2SWITCH_PORT).
+      # FIX IMMEDIAT : supprime O2SWITCH_SSH_KEY + O2SWITCH_SSH_PASSPHRASE si tu veux auth par password (recommande o2switch).
+      # Si tu veux garder la cle : mets la cle PRIVEE complete (-----BEGIN OPENSSH PRIVATE KEY----- ... -----END...) SANS passphrase, ou avec passphrase + O2SWITCH_SSH_PASSPHRASE.
       - name: SCP to o2switch
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -72,7 +72,7 @@ jobs:
           password: ${{ secrets.O2SWITCH_PASSWORD }}
           key: ${{ secrets.O2SWITCH_SSH_KEY }}
           passphrase: ${{ secrets.O2SWITCH_SSH_PASSPHRASE }}
-          port: ${{ secrets.O2SWITCH_PORT }}
+          port: ${{ secrets.O2SWITCH_PORT || 22 }}
           source: "server.js,server.o2switch.js,package.json,package-lock.json,public/**,.htaccess,ecosystem.config.example.js"
           target: "${{ secrets.O2SWITCH_PATH }}"
           overwrite: true
@@ -91,7 +91,7 @@ jobs:
           password: ${{ secrets.O2SWITCH_PASSWORD }}
           key: ${{ secrets.O2SWITCH_SSH_KEY }}
           passphrase: ${{ secrets.O2SWITCH_SSH_PASSPHRASE }}
-          port: ${{ secrets.O2SWITCH_PORT }}
+          port: ${{ secrets.O2SWITCH_PORT || 22 }}
           timeout: 60s
           command_timeout: 10m
           script: |
