@@ -9,7 +9,7 @@ fix_order.js
 dedupe.js
 do_patch*.js
 p0*.js
-patch*.js
+patch_*.js
 patch_*.txt
 pf*.js
 repair*.js

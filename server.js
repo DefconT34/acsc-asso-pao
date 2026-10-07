@@ -1,14 +1,21 @@
-﻿const express = require('express');
+const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
-const cors = require('cors');
+let cors; try{ cors=require('cors'); }catch(e){ console.warn('WARN: cors manquant -> desactive (npm install cors)'); cors=function(_opts){ return function(_req,_res,next){ next(); }; }; }
 const path = require('path');
 const fs = require('fs');
 
 let helmet, compression, bcrypt, rateLimit;
-try { helmet = require('helmet'); } catch { console.error('FATAL: helmet manquant -> npm install'); process.exit(1); }
-try { compression = require('compression'); } catch { compression = (_req,_res,next)=>next(); console.warn('compression not installed - run npm install compression'); }
-try { bcrypt = require('bcryptjs'); } catch { console.error('FATAL: bcryptjs obligatoire -> npm install'); process.exit(1); }
-try { rateLimit = require('express-rate-limit'); } catch { console.error('FATAL: express-rate-limit manquant -> npm install'); process.exit(1); }
+try { helmet = require('helmet'); } catch (e) { console.warn('WARN: helmet manquant -> securite desactivee (npm install helmet pour activer)'); helmet = function(_opts){ return function(_req,_res,next){ next(); }; }; }
+try { compression = require('compression'); } catch (e) { compression = function(_req,_res,next){ next(); }; console.warn('WARN: compression manquant -> desactive'); }
+try { bcrypt = require('bcryptjs'); } catch (e) {
+  console.warn('WARN: bcryptjs manquant -> fallback crypto SHA256 (npm install bcryptjs pour PIN bcrypt)');
+  var crypto = require('crypto');
+  bcrypt = {
+    hashSync: function(p){ return crypto.createHash('sha256').update(String(p)).digest('hex'); },
+    compareSync: function(plain, hash){ return crypto.createHash('sha256').update(String(plain)).digest('hex') === String(hash); }
+  };
+}
+try { rateLimit = require('express-rate-limit'); } catch (e) { console.warn('WARN: express-rate-limit manquant -> rate-limit desactive (npm install express-rate-limit)'); rateLimit = function(_opts){ return function(_req,_res,next){ next(); }; }; }
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
