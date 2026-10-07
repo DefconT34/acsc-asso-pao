@@ -57,6 +57,27 @@ jobs:
             echo "::error::Ni O2SWITCH_PASSWORD ni O2SWITCH_SSH_KEY defini - configure l'un des deux (password = mot de passe cPanel le plus simple sur o2switch)"
             exit 1
           fi
+          # Format HOST : doit etre IP ou hostname NU sans https:// ni :port ni /
+          HOST='${{ secrets.O2SWITCH_HOST }}'
+          if echo "$HOST" | grep -qE '^https?://|/|:'; then
+            echo "::error::O2SWITCH_HOST='$HOST' invalide - mets IP nue (109.234.167.160) ou hostname nu (s109.o2switch.net) SANS https:// ni :port ni /"
+            exit 1
+          fi
+          if echo "$HOST" | grep -q ' '; then
+            echo "::error::O2SWITCH_HOST contient un espace - supprime l'espace dans le Secret"
+            exit 1
+          fi
+
+      - name: Check DNS (diagnose no such host)
+        run: |
+          HOST='${{ secrets.O2SWITCH_HOST }}'
+          echo "nslookup $HOST ..."
+          if ! nslookup "$HOST" 2>&1; then
+            echo "::warning::nslookup echoue - host non resolvable depuis GitHub runner"
+            getent hosts "$HOST" 2>&1 || echo "::error::DNS FAIL - verifie O2SWITCH_HOST dans cPanel > General Information > Shared IP / Server Name"
+          fi
+          echo "nc -zv test (port ${{ secrets.O2SWITCH_PORT || 22 }}) ..."
+          timeout 8 bash -c "cat < /dev/null > /dev/tcp/$HOST/${{ secrets.O2SWITCH_PORT || 22 }}" && echo "TCP OK" || echo "::warning::TCP connect echoue - firewall o2switch bloque peut-etre le port ${{ secrets.O2SWITCH_PORT || 22 }} (o2switch mutualise bloque souvent le 22, utilise FTP port 21)"
 
       # 1) Copie fichiers vers o2switch en SCP (sans node_modules/database.db/.env)
       # DIAGNOSTIC TON LOG 16:26 :
