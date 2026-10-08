@@ -73,6 +73,20 @@ jobs:
           date -u > tmp/restart.txt
           cat tmp/restart.txt
 
+      - name: Ensure .htaccess exists locally (fix CloudLinux FileNotFoundError)
+        run: |
+          ls -la .htaccess public/.htaccess || true
+          # Le selector CloudLinux exige public/.htaccess (file_readlines) avant restart
+          if [ ! -f public/.htaccess ]; then
+            echo "WARN: public/.htaccess manquant localement -> creation minimale"
+            mkdir -p public
+            printf '%s\n' '# cPanel CloudLinux NodeJS selector - NE PAS SUPPRIMER' 'DirectoryIndex disabled' 'RewriteEngine On' > public/.htaccess
+          fi
+          cat public/.htaccess
+          cat .htaccess || true
+          echo "--- git tracked ---"
+          git ls-files | grep -E "htaccess" || echo "aucun htaccess tracke (anomalie)"
+
       - name: Deploy via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -124,6 +138,13 @@ jobs:
             node -v || echo "node not found"
             npm -v || echo "npm not found"
             cd "${{ secrets.O2SWITCH_PATH }}"
+            mkdir -p public
+            if [ ! -f public/.htaccess ]; then
+              echo "[FIX] public/.htaccess manquant -> creation (FileNotFoundError cl-selector)"
+              printf '%s\n' '# cPanel CloudLinux NodeJS selector - NE PAS SUPPRIMER' 'DirectoryIndex disabled' 'RewriteEngine On' > public/.htaccess
+            fi
+            cat public/.htaccess || true
+            cat .htaccess || true
             mkdir -p "$HOME/acsc-data"
             npm ci --omit=dev || echo "::warning::npm ci fail via SSH - faire manuellement via cPanel Terminal"
             mkdir -p tmp
