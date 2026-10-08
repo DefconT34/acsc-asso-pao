@@ -26,14 +26,17 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com", "https://unpkg.com"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https:", "http:", "blob:", "data:", "https://cdn.tailwindcss.com", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com", "https://unpkg.com"],
+      scriptSrcElem: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https:", "http:", "blob:", "data:", "https://cdn.tailwindcss.com", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com", "https://unpkg.com"],
       scriptSrcAttr: ["'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com", "https://fonts.googleapis.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https:", "https://cdn.tailwindcss.com", "https://fonts.googleapis.com"],
+      styleSrcElem: ["'self'", "'unsafe-inline'", "https:", "https://cdn.tailwindcss.com", "https://fonts.googleapis.com"],
       styleSrcAttr: ["'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "blob:", "https:"],
-      connectSrc: ["'self'", "https://api.elevenlabs.io"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
-      mediaSrc: ["'self'", "blob:", "https://api.elevenlabs.io"],
+      connectSrc: ["'self'", "https://api.elevenlabs.io", "https:", "wss:", "ws:", "blob:", "data:"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com", "data:", "https:"],
+      mediaSrc: ["'self'", "blob:", "data:", "https:", "https://api.elevenlabs.io"],
+      workerSrc: ["'self'", "blob:", "data:"],
       objectSrc: ["'none'"],
       frameAncestors: ["'none'"]
     }
@@ -42,9 +45,15 @@ app.use(helmet({
   hsts: { maxAge: 31536000, includeSubDomains: true, preload: true }
 }));
 app.use(compression());
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000').split(',').map(v=>v.trim()).filter(Boolean);
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map(v=>v.trim()).filter(Boolean);
 app.use(cors({
-  origin: (origin, cb) => { if (!origin) return cb(null, true); if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true); return cb(new Error('CORS bloque: '+origin)); },
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true);
+    if (ALLOWED_ORIGINS.length===0) return cb(null, true);
+    if (ALLOWED_ORIGINS.includes(origin) || ALLOWED_ORIGINS.includes('*')) return cb(null, true);
+    try{ const u=new URL(origin); const h=u.hostname; if(h.endsWith('thecigarodyssey.com')||h.endsWith('odns.fr')||h==='localhost'||h==='127.0.0.1') return cb(null,true); }catch{}
+    return cb(new Error('CORS bloque: '+origin));
+  },
   credentials: true
 }));
 app.use(express.json({ limit: '5mb' }));
@@ -224,7 +233,7 @@ async function genCodeProjet() {
 }
 // API SETTINGS + PIN
 app.get('/api/settings', async (req, res) => {
-  try { res.json(await dbGet(`SELECT * FROM settings WHERE id=1`)); } catch (e) { res.status(500).json({ error: e.message }); }
+  try { res.json(await dbGet(`SELECT * FROM settings WHERE id=1`)); } catch (e) { console.error('[GET /api/settings]', e && e.stack || e); res.status(500).json({ error: e.message || String(e) }); }
 });
 app.post('/api/settings', async (req, res) => {
   try {
@@ -237,7 +246,7 @@ app.post('/api/settings', async (req, res) => {
     }
     await dbRun(`UPDATE settings SET gerant=?, devise=?, taux=?, pays=?, factureTransit=?, poidsTotal=?, sites=? WHERE id=1`, [b.gerant, b.devise, b.taux, b.pays, b.factureTransit, b.poidsTotal, JSON.stringify(b.sites || [])]);
     res.json({ ok: 1 });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { console.error('[POST /api/settings]', e && e.stack || e, 'body=', JSON.stringify(req.body).slice(0,800)); res.status(500).json({ error: e.message || String(e) }); }
 });
 app.post('/api/pin/check', pinLimiter, async (req, res) => {
   try {
