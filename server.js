@@ -234,13 +234,13 @@ function valPersonne(b) {
   if (b.telephone && String(b.telephone).trim().length > 30) return 'Telephone trop long';
   if (b.lienProduit && String(b.lienProduit).trim()) {
     const lp = String(b.lienProduit).trim();
-    if (!/^https?:\/\/.+/i.test(lp)) return 'Lien produit invalide (http(s)://)';
+    if (!/^https:\/\/.+/i.test(lp)) return 'Lien produit invalide (https:// requis)';
     if (lp.length > 2048) return 'Lien trop long (max 2048)';
   }
   if (b.capture && String(b.capture).trim()) {
     const c = String(b.capture).trim();
     if (c.length > 900*1024) return 'Capture trop volumineuse (max ~700Ko apres compression)';
-    if (c && !/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(c) && !/^https?:\/\//i.test(c)) return 'Capture invalide';
+    if (c && !/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(c) && !/^https:\/\//i.test(c)) return 'Capture invalide (https:// ou data:image/...;base64)';
   }
   return null;
 }
