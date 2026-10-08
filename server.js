@@ -61,6 +61,7 @@ app.use(express.json({ limit: '5mb' }));
 const apiLimiter = rateLimit({ windowMs: 15*60*1000, max: 300, standardHeaders: true, legacyHeaders: false });
 const pinLimiter = rateLimit({ windowMs: 15*60*1000, max: 20, standardHeaders: true, legacyHeaders: false, message: { error: 'Trop de tentatives PIN, reessayez dans 15 min' } });
 const elevenLimiter = rateLimit({ windowMs: 60*1000, max: 12, standardHeaders: true, legacyHeaders: false, message: { error: 'Trop de requetes TTS' } });
+const commandeLimiter = rateLimit({ windowMs: 60*1000, max: 30, standardHeaders: true, legacyHeaders: false, message: { error: 'Trop de commandes, reessayez dans 1 min' } });
 app.use('/api/', apiLimiter);
 app.use(express.static(path.join(__dirname, 'public'), {
   maxAge: '1d',
@@ -229,8 +230,18 @@ function valPersonne(b) {
   if (!Number.isInteger(Number(b.quantite)) || Number(b.quantite) < 1) return 'Quantite entiere >=1';
   if (b.telephone && String(b.telephone).replace(/\D/g, '').length < 8) return 'Telephone invalide';
   if (!b.site) return 'Site requis';
-  if (b.lienProduit && String(b.lienProduit).trim() && !/^https?:\/\/.+/i.test(String(b.lienProduit).trim())) return 'Lien produit invalide (http(s)://)';
-  if (b.capture && String(b.capture).length > 1.8*1024*1024) return 'Capture trop volumineuse (max ~1.5Mo)';
+  if (b.nom && String(b.nom).trim().length > 80) return 'Nom trop long (max 80)';
+  if (b.telephone && String(b.telephone).trim().length > 30) return 'Telephone trop long';
+  if (b.lienProduit && String(b.lienProduit).trim()) {
+    const lp = String(b.lienProduit).trim();
+    if (!/^https?:\/\/.+/i.test(lp)) return 'Lien produit invalide (http(s)://)';
+    if (lp.length > 2048) return 'Lien trop long (max 2048)';
+  }
+  if (b.capture && String(b.capture).trim()) {
+    const c = String(b.capture).trim();
+    if (c.length > 900*1024) return 'Capture trop volumineuse (max ~700Ko apres compression)';
+    if (c && !/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(c) && !/^https?:\/\//i.test(c)) return 'Capture invalide';
+  }
   return null;
 }
 function valSettings(b) {
@@ -471,7 +482,7 @@ app.get('/api/commande/:code', async (req,res)=>{
 app.get('/api/personnes/by-projet/:code', async (req,res)=>{
   try{ const code=String(req.params.code||'').trim().toUpperCase(); res.json(await dbAll('SELECT * FROM personnes WHERE projetCode=?',[code])); }catch(e){res.status(500).json({error:e.message});}
 });
-app.post('/api/commande', async (req,res)=>{
+app.post('/api/commande', commandeLimiter, async (req,res)=>{
   try{
     const b=req.body||{};
     const projetCode=String(b.projetCode||'').trim().toUpperCase();
@@ -495,13 +506,20 @@ app.post('/api/commande', async (req,res)=>{
     const digits=telephone.replace(/\D/g,'');
     const cnt=await dbGet("SELECT COUNT(*) as c FROM personnes WHERE projetCode=? AND replace(replace(replace(telephone,' ',''),'-',''),'+','') LIKE ?", [projetCode, '%'+digits.slice(-8)]);
     if(Number((cnt && cnt.c)||0)+items.length>3) return res.status(429).json({error:'Limite 3 commandes par tel/projet'});
-    const ids=[];
+    // validation avant transaction
     for(let it of items){
       const err=valPersonne({nom, montant:Number(it.montant), quantite:Number(it.quantite), site:String(it.site).trim(), telephone, statut:'impaye', lienProduit:it.lienProduit||'', capture:it.capture||''});
       if(err) return res.status(400).json({error:err});
-      const r=await dbRun('INSERT INTO personnes(nom,montant,quantite,site,telephone,statut,projetCode,lienProduit,capture) VALUES(?,?,?,?,?,?,?,?,?)', [nom, Number(it.montant), parseInt(it.quantite), String(it.site).trim(), telephone,'impaye', projetCode, String(it.lienProduit||'').trim(), String(it.capture||'').trim()]);
-      ids.push(r.lastID);
     }
+    const ids=[];
+    await dbRun('BEGIN');
+    try{
+      for(let it of items){
+        const r=await dbRun('INSERT INTO personnes(nom,montant,quantite,site,telephone,statut,projetCode,lienProduit,capture) VALUES(?,?,?,?,?,?,?,?,?)', [nom, Number(it.montant), parseInt(it.quantite), String(it.site).trim(), telephone,'impaye', projetCode, String(it.lienProduit||'').trim(), String(it.capture||'').trim()]);
+        ids.push(r.lastID);
+      }
+      await dbRun('COMMIT');
+    }catch(txErr){ try{ await dbRun('ROLLBACK'); }catch(_){} throw txErr; }
     res.json({ok:1, ids, projetCode, count:ids.length});
   }catch(e){ res.status(500).json({error:e.message}); }
 });
@@ -546,7 +564,7 @@ app.get('/api/public/mes-commandes', async (req,res)=>{
     res.json({ok:1, rows});
   }catch(e){ res.status(500).json({error:e.message}); }
 });
-app.post('/api/public/commande', async (req,res)=>{
+app.post('/api/public/commande', commandeLimiter, async (req,res)=>{
   try{
     const b=req.body||{};
     const projetCode=String(b.projetCode||'').trim().toUpperCase();
@@ -570,13 +588,19 @@ app.post('/api/public/commande', async (req,res)=>{
     const digits=telephone.replace(/\D/g,'');
     const cnt=await dbGet("SELECT COUNT(*) as c FROM personnes WHERE projetCode=? AND replace(replace(replace(telephone,' ',''),'-',''),'+','') LIKE ?", [projetCode,'%'+digits.slice(-8)]);
     if(Number((cnt && cnt.c)||0)+items.length>3) return res.status(429).json({error:'Limite 3 commandes par tel/projet'});
-    const ids=[];
     for(let it of items){
       const err=valPersonne({nom, montant:Number(it.montant), quantite:Number(it.quantite), site:String(it.site).trim(), telephone, statut:'impaye', lienProduit:it.lienProduit||'', capture:it.capture||''});
       if(err) return res.status(400).json({error:err});
-      const r=await dbRun('INSERT INTO personnes(nom,montant,quantite,site,telephone,statut,projetCode,lienProduit,capture) VALUES(?,?,?,?,?,?,?,?,?)',[nom,Number(it.montant),parseInt(it.quantite),String(it.site).trim(),telephone,'impaye',projetCode,String(it.lienProduit||'').trim(),String(it.capture||'').trim()]);
-      ids.push(r.lastID);
     }
+    const ids=[];
+    await dbRun('BEGIN');
+    try{
+      for(let it of items){
+        const r=await dbRun('INSERT INTO personnes(nom,montant,quantite,site,telephone,statut,projetCode,lienProduit,capture) VALUES(?,?,?,?,?,?,?,?,?)',[nom,Number(it.montant),parseInt(it.quantite),String(it.site).trim(),telephone,'impaye',projetCode,String(it.lienProduit||'').trim(),String(it.capture||'').trim()]);
+        ids.push(r.lastID);
+      }
+      await dbRun('COMMIT');
+    }catch(txErr){ try{ await dbRun('ROLLBACK'); }catch(_){} throw txErr; }
     res.json({ok:1,ids,projetCode,count:ids.length});
   }catch(e){ res.status(500).json({error:e.message}); }
 });
