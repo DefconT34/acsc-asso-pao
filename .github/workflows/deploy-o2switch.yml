@@ -87,6 +87,42 @@ jobs:
           echo "--- git tracked ---"
           git ls-files | grep -E "htaccess" || echo "aucun htaccess tracke (anomalie)"
 
+      - name: Force full FTP republish (public manquant en ligne)
+        run: |
+          echo "=== REPUBLICATION COMPLETE ==="
+          echo "Suppression cache FTP incremental (.ftp-deploy-sync-state.json) -> force full upload"
+          rm -f .ftp-deploy-sync-state.json
+          echo "--- local public/ ---"
+          ls -la public/ || true
+          echo "--- git ls-files public/ ($(git ls-files public | wc -l) fichiers) ---"
+          git ls-files public
+          echo "--- .htaccess tracked ---"
+          git ls-files | grep -E "htaccess" || true
+          echo "--- gitignore check (doit etre vide) ---"
+          git check-ignore -v public/.htaccess public/index.html .htaccess || echo "OK non ignore"
+
+      - name: Purge remote FTP sync cache (force full upload)
+        continue-on-error: true
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.O2SWITCH_HOST }}
+          username: ${{ secrets.O2SWITCH_USER }}
+          password: ${{ secrets.O2SWITCH_PASSWORD }}
+          key: ${{ secrets.O2SWITCH_SSH_KEY }}
+          passphrase: ${{ secrets.O2SWITCH_SSH_PASSPHRASE }}
+          port: ${{ secrets.O2SWITCH_PORT || 22 }}
+          timeout: 15s
+          command_timeout: 1m
+          script: |
+            set +e
+            echo ">> PURGE remote .ftp-deploy-sync-state.json"
+            cd "${{ secrets.O2SWITCH_PATH }}" 2>&1 && pwd && ls -la .ftp-deploy-sync-state.json 2>&1 || echo "no state file yet"
+            rm -f "${{ secrets.O2SWITCH_PATH }}/.ftp-deploy-sync-state.json" 2>&1 || true
+            rm -f "$HOME/${{ secrets.O2SWITCH_PATH }}/.ftp-deploy-sync-state.json" 2>&1 || true
+            echo ">> AFTER purge:"; ls -la .ftp-deploy-sync-state.json 2>&1 || echo "purged OK"
+            echo ">> public AVANT deploy:"; ls -la public/ 2>&1 | head -n 60 || echo "public manquant - sera recree par FTP"
+            echo ">> HTACCESS AVANT:"; ls -la public/.htaccess .htaccess 2>&1 || true
+
       - name: Deploy via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -153,6 +189,10 @@ jobs:
             if command -v cloudlinux-selector >/dev/null 2>&1; then
               cloudlinux-selector restart --json --interpreter nodejs --app-root "$HOME/${{ secrets.O2SWITCH_PATH }}" || true
             fi
+            echo ">> VERIF APRES DEPLOY:"; ls -la 2>&1 | head -n 40 || true
+            echo ">> public APRES:"; ls -la public/ 2>&1 | head -n 60 || echo "ERREUR public toujours manquant apres FTP !"
+            echo ">> .htaccess APRES:"; ls -la public/.htaccess .htaccess 2>&1 || true
+            cat public/.htaccess 2>&1 | head -n 20 || true
 
       - name: Post-deploy info
         run: |
