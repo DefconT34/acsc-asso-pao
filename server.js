@@ -62,7 +62,25 @@ const apiLimiter = rateLimit({ windowMs: 15*60*1000, max: 300, standardHeaders: 
 const pinLimiter = rateLimit({ windowMs: 15*60*1000, max: 20, standardHeaders: true, legacyHeaders: false, message: { error: 'Trop de tentatives PIN, reessayez dans 15 min' } });
 const elevenLimiter = rateLimit({ windowMs: 60*1000, max: 12, standardHeaders: true, legacyHeaders: false, message: { error: 'Trop de requetes TTS' } });
 app.use('/api/', apiLimiter);
-app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1d', etag: true }));
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: '1d',
+  etag: true,
+  setHeaders: (res, fp) => {
+    if (fp.endsWith('.html')) res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    else if (fp.endsWith('.js')) res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+    else if (fp.endsWith('.css')) res.setHeader('Content-Type', 'text/css; charset=utf-8');
+    else if (fp.endsWith('.json')) res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    if (/\.(html|js|css|json|svg)$/.test(fp)) res.setHeader('Cache-Control', 'public, max-age=300');
+  }
+}));
+// charset explicite pour les fallbacks
+app.use((req, res, next) => {
+  const ct = res.getHeader('Content-Type');
+  if (ct && typeof ct === 'string' && !ct.includes('charset') && (String(ct).includes('text/html') || String(ct).includes('application/json') || String(ct).includes('javascript') || String(ct).includes('text/css'))) {
+    res.setHeader('Content-Type', ct + '; charset=utf-8');
+  }
+  next();
+});
 
 app.use((req, res, next) => {
   console.log(`[${new Date().toLocaleTimeString('fr-FR')}] ${req.method} ${req.url}`);

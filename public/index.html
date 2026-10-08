@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,6 +13,8 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0A0A0A">
 <style>
+*{ -webkit-tap-highlight-color:transparent; }
+html{ -webkit-text-size-adjust:100%; scroll-behavior:smooth; }
 .dark body, body.dark { background:#060a14; color:#e2e8f0; }
 .dark .bg-white { background:#1e293b !important; color:#e2e8f0; }
 .dark .bg-gray-50 { background:#0f172a !important; }
@@ -27,47 +29,60 @@ input:invalid, select:invalid { border-color:#ef4444 !important; box-shadow:0 0 
 .dark .field-error { background:#450a0a !important; }
 @keyframes countUp { from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:translateY(0)} }
 .kpi-animate { animation: countUp 0.35s ease; }
-.step-dot{width:26px;height:26px;border-radius:9999px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:11px}.card{box-shadow:0 1px 10px rgba(0,0,0,.06)}.gate-blur{backdrop-filter:blur(6px)}#tbody tr{transition:background .15s} </style>
+.step-dot{width:26px;height:26px;border-radius:9999px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:11px}
+.card{box-shadow:0 1px 10px rgba(0,0,0,.06)}
+.gate-blur{backdrop-filter:blur(6px)}
+#tbody tr{transition:background .15s}
+button:active{ transform:scale(0.98); }
+input, select, textarea{ font-size:16px; }
+@media (max-width:1024px){ input, select, textarea{ font-size:16px; } }
+@media (max-width:640px){ .card{ border-radius:14px; } table{ font-size:13px; } }
+:focus-visible{ outline:2px solid #C9A86A; outline-offset:2px; }
+#mobileMenu{ max-height:calc(100dvh - 56px); overflow-y:auto; -webkit-overflow-scrolling:touch; }
+.mobile-bottom-bar{ position:sticky; bottom:0; z-index:30; backdrop-filter:blur(8px); }
+@media (min-width:1024px){ .mobile-bottom-bar{ display:none; } }
+ </style>
 </head>
 <body class="min-h-screen flex flex-col bg-[#F8F9FC] lg:h-screen lg:overflow-hidden" id="bodyRoot">
-<div id="saveBanner" class="hidden bg-amber-50 border-b border-amber-200 px-3 py-2 flex items-center justify-between gap-2 text-xs">
-  <span class="font-bold text-amber-800">ðŸ’¡ Modifications non sauvegardÃ©es</span>
-  <span class="flex gap-2"><button onclick="sauvegarderHistoriqueModal()" class="bg-[#0A0A0A] text-[#C9A86A] px-4 py-1.5 rounded-full font-bold">ðŸ“ CrÃ©er projet</button><button onclick="dismissSaveBanner()" class="bg-white border px-3 py-1.5 rounded-full">Ignorer</button></span>
+<style>.safe-pb{padding-bottom:max(8px, env(safe-area-inset-bottom));}</style>
+<div id="saveBanner" class="hidden bg-amber-50 border-b border-amber-200 px-3 py-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+  <span class="font-bold text-amber-800">💡 Modifications non sauvegardées</span>
+  <span class="flex gap-2"><button onclick="sauvegarderHistoriqueModal()" class="bg-[#0A0A0A] text-[#C9A86A] px-4 py-1.5 rounded-full font-bold">📁 Créer projet</button><button onclick="dismissSaveBanner()" class="bg-white border px-3 py-1.5 rounded-full">Ignorer</button></span>
 </div>
 <header class="h-[56px] bg-[#0A0A0A] text-white flex items-center justify-between px-3 shrink-0 sticky top-0 z-40 border-b border-[#C9A86A]/30">
   <div class="flex items-center gap-3">
     <img src="logo.svg" alt="Premium Cigars & Tobacco" class="h-9 w-auto rounded-lg object-contain bg-black">
-    <div><h1 class="font-black text-sm leading-none">ACSC Asso Pao</h1><p class="text-[10px] opacity-70 tracking-wide">Premium Cigars &amp; Tobacco â€¢ Frais deduits</p></div>
+    <div><h1 class="font-black text-sm leading-none">ACSC Asso Pao</h1><p class="text-[10px] opacity-70 tracking-wide">Premium Cigars &amp; Tobacco • Frais deduits</p></div>
   </div>
-  <div class="flex gap-1.5 items-center">
-    <span class="hidden lg:flex bg-white/10 px-2 py-1 rounded-full text-xs items-center">GÃ©rant:<input id="gerant" oninput="save()" class="bg-transparent font-bold w-24 outline-none border-b border-white/20 ml-1"></span>
-    <button onclick="sauvegarderHistoriqueModal()" class="bg-[#C9A86A] text-[#0A0A0A] border border-[#C9A86A] text-[#0F2A44] px-3 py-1.5 rounded-full text-xs font-bold">ðŸ“ Nouveau projet</button>
-    <button onclick="ouvrirHistorique()" class="bg-purple-600 px-3 py-1.5 rounded-full text-xs font-bold">ðŸ•˜ Hist <span id="badgeHist" class="bg-white text-purple-700 px-1.5 rounded-full text-[10px] hidden">0</span></button>
+  <div class="hidden lg:flex gap-1.5 items-center flex-wrap">
+    <span class="hidden lg:flex bg-white/10 px-2 py-1 rounded-full text-xs items-center">Gérant:<input id="gerant" oninput="save()" class="bg-transparent font-bold w-24 outline-none border-b border-white/20 ml-1"></span>
+    <button onclick="sauvegarderHistoriqueModal()" class="bg-[#C9A86A] text-[#0A0A0A] border border-[#C9A86A] text-[#0F2A44] px-3 py-1.5 rounded-full text-xs font-bold">📁 Nouveau projet</button>
+    <button onclick="ouvrirHistorique()" class="bg-purple-600 px-3 py-1.5 rounded-full text-xs font-bold">🕘 Hist <span id="badgeHist" class="bg-white text-purple-700 px-1.5 rounded-full text-[10px] hidden">0</span></button>
     <button onclick="genererPDFGlobal()" class="bg-orange-500 px-3 py-1.5 rounded-full text-xs font-bold">PDF</button>
-    <button onclick="ouvrirModalEnvoi('final')" class="bg-green-500 px-3 py-1.5 rounded-full text-xs font-bold">ðŸ“² Groupe</button><button onclick="partagerLienCommande()" class="bg-[#25D366] px-3 py-1.5 rounded-full text-xs font-bold">ðŸ”— Lien</button>
-    <button onclick="document.getElementById('importFile').click()" class="bg-blue-500 px-3 py-1.5 rounded-full text-xs font-bold">ðŸ“¥ Excel</button>
+    <button onclick="ouvrirModalEnvoi('final')" class="bg-green-500 px-3 py-1.5 rounded-full text-xs font-bold">📲 Groupe</button><button onclick="partagerLienCommande()" class="bg-[#25D366] px-3 py-1.5 rounded-full text-xs font-bold">🔗 Lien</button>
+    <button onclick="document.getElementById('importFile').click()" class="bg-blue-500 px-3 py-1.5 rounded-full text-xs font-bold">📥 Excel</button>
     <input type="file" id="importFile" accept=".xlsx,.xls,.csv" class="hidden" onchange="importExcelFile(event)">
-    <div class="relative"><button onclick="toggleBackupMenu()" class="bg-white text-[#0F2A44] px-3 py-1.5 rounded-full text-xs font-bold">â˜ï¸ â–¾</button>
+    <div class="relative"><button onclick="toggleBackupMenu()" class="bg-white text-[#0F2A44] px-3 py-1.5 rounded-full text-xs font-bold">☁️ ▾</button>
       <div id="backupMenu" class="hidden absolute right-0 mt-2 bg-white text-[#0F2A44] rounded-xl shadow-xl border p-2 w-48 text-xs z-50">
-        <button onclick="exportBackup()" class="w-full text-left px-3 py-2 hover:bg-gray-100 rounded">â¬‡ï¸ Exporter JSON</button>
-        <label class="w-full text-left px-3 py-2 hover:bg-gray-100 rounded block cursor-pointer">â¬†ï¸ Restaurer <input type="file" id="restoreFile" accept=".json" class="hidden" onchange="importBackup(event)"></label>
-        <button onclick="exportExcel()" class="w-full text-left px-3 py-2 hover:bg-gray-100 rounded">ðŸ“Š Export Excel</button>
+        <button onclick="exportBackup()" class="w-full text-left px-3 py-2 hover:bg-gray-100 rounded">⬇️ Exporter JSON</button>
+        <label class="w-full text-left px-3 py-2 hover:bg-gray-100 rounded block cursor-pointer">⬆️ Restaurer <input type="file" id="restoreFile" accept=".json" class="hidden" onchange="importBackup(event)"></label>
+        <button onclick="exportExcel()" class="w-full text-left px-3 py-2 hover:bg-gray-100 rounded">📊 Export Excel</button>
       </div>
     </div>
-    <button onclick="toggleDashboard()" class="bg-purple-500 px-2 py-1.5 rounded-full text-xs font-bold">ðŸ“Š</button>
-    <button onclick="toggleDark()" class="bg-white/10 px-2 py-1.5 rounded-full text-xs">ðŸŒ™</button>
-    <button onclick="openPinModal()" class="bg-white/10 px-2 py-1.5 rounded-full text-xs">ðŸ”’</button>
+    <button onclick="toggleDashboard()" class="bg-purple-500 px-2 py-1.5 rounded-full text-xs font-bold">📊</button>
+    <button onclick="toggleDark()" class="bg-white/10 px-2 py-1.5 rounded-full text-xs">🌙</button>
+    <button onclick="openPinModal()" class="bg-white/10 px-2 py-1.5 rounded-full text-xs">🔒</button>
   </div>
   <div class="flex lg:hidden items-center gap-1">
-    <button onclick="toggleDark()" class="bg-white/10 px-2 py-1.5 rounded-full text-xs">ðŸŒ™</button>
-    <button onclick="toggleMobileMenu()" class="bg-white text-[#0F2A44] px-3 py-1.5 rounded-full text-sm font-black">â˜°</button>
+    <button onclick="toggleDark()" class="bg-white/10 px-2 py-1.5 rounded-full text-xs">🌙</button>
+    <button onclick="toggleMobileMenu()" class="bg-white text-[#0F2A44] px-3 py-1.5 rounded-full text-sm font-black">☰</button>
   </div>
 </header><div id="stepsBar" class="bg-white border-b sticky top-[56px] z-30">
 <div class="max-w-[1600px] mx-auto px-3 py-2 flex items-center gap-2 text-[11px] overflow-x-auto">
 <div class="flex items-center gap-2 shrink-0"><span id="step1Dot" class="step-dot bg-amber-100 text-amber-700 border border-amber-200">1</span><span class="font-bold">Creer un projet</span><span id="step1State" class="text-[10px] px-2 py-0.5 rounded-full bg-amber-50 border text-amber-700">a faire</span></div>
-<span class="text-gray-300">â†’</span>
+<span class="text-gray-300">→</span>
 <div class="flex items-center gap-2 shrink-0"><span class="step-dot bg-gray-100 text-gray-600">2</span><span class="font-bold">Gerance commandes</span></div>
-<span class="text-gray-300">â†’</span>
+<span class="text-gray-300">→</span>
 <div class="flex items-center gap-2 shrink-0"><span class="step-dot bg-gray-100 text-gray-600">3</span><span class="font-bold">Partager lien WhatsApp</span></div>
 <span class="flex-1"></span>
 <button onclick="sauvegarderHistoriqueModal()" class="bg-[#0A0A0A] text-[#C9A86A] px-3 py-1.5 rounded-full font-bold text-xs shrink-0">+ Nouveau projet</button>
@@ -90,48 +105,48 @@ input:invalid, select:invalid { border-color:#ef4444 !important; box-shadow:0 0 
 </div>
 
 <div id="mobileMenu" class="hidden bg-[#0F2A44] text-white p-3 gap-2 flex-col lg:hidden">
-  <input id="gerantMobile" oninput="document.getElementById('gerant').value=this.value; save()" placeholder="GÃ©rant" class="bg-white/10 rounded p-2 text-sm">
+  <input id="gerantMobile" oninput="document.getElementById('gerant').value=this.value; save()" placeholder="Gérant" class="bg-white/10 rounded p-2 text-sm">
   <div class="grid grid-cols-2 gap-2">
-    <button onclick="sauvegarderHistoriqueModal();toggleMobileMenu()" class="bg-yellow-500 text-[#0F2A44] py-2 rounded-full font-bold text-sm">ðŸ“ Nouveau projet</button>
-    <button onclick="ouvrirHistorique();toggleMobileMenu()" class="bg-purple-600 py-2 rounded-full font-bold text-sm">ðŸ•˜ Historique</button>
-    <button onclick="toggleDashboard();toggleMobileMenu()" class="bg-white/10 py-2 rounded-full font-bold text-sm">ðŸ“Š Dashboard</button>
+    <button onclick="sauvegarderHistoriqueModal();toggleMobileMenu()" class="bg-yellow-500 text-[#0F2A44] py-2 rounded-full font-bold text-sm">📁 Nouveau projet</button>
+    <button onclick="ouvrirHistorique();toggleMobileMenu()" class="bg-purple-600 py-2 rounded-full font-bold text-sm">🕘 Historique</button>
+    <button onclick="toggleDashboard();toggleMobileMenu()" class="bg-white/10 py-2 rounded-full font-bold text-sm">📊 Dashboard</button>
     <button onclick="genererPDFGlobal();toggleMobileMenu()" class="bg-orange-500 py-2 rounded-full font-bold text-sm">PDF Global</button>
-    <button onclick="ouvrirModalEnvoi('final');toggleMobileMenu()" class="bg-green-500 py-2 rounded-full font-bold text-sm">ðŸ“² Groupe</button>
-    <button onclick="document.getElementById('importFile').click()" class="bg-blue-500 py-2 rounded-full font-bold text-sm">ðŸ“¥ Import Excel</button>
-    <button onclick="exportBackup()" class="bg-white text-[#0F2A44] py-2 rounded-full font-bold text-sm">â˜ï¸ Export JSON</button>
-    <button onclick="exportExcel()" class="bg-white text-[#0F2A44] py-2 rounded-full font-bold text-sm">ðŸ“Š Export Excel</button>
-    <button onclick="openPinModal()" class="bg-white/10 py-2 rounded-full font-bold text-sm">ðŸ”’ PIN</button>
+    <button onclick="ouvrirModalEnvoi('final');toggleMobileMenu()" class="bg-green-500 py-2 rounded-full font-bold text-sm">📲 Groupe</button>
+    <button onclick="document.getElementById('importFile').click()" class="bg-blue-500 py-2 rounded-full font-bold text-sm">📥 Import Excel</button>
+    <button onclick="exportBackup()" class="bg-white text-[#0F2A44] py-2 rounded-full font-bold text-sm">☁️ Export JSON</button>
+    <button onclick="exportExcel()" class="bg-white text-[#0F2A44] py-2 rounded-full font-bold text-sm">📊 Export Excel</button>
+    <button onclick="openPinModal()" class="bg-white/10 py-2 rounded-full font-bold text-sm">🔒 PIN</button>
   </div>
 </div>
 <div id="dashboard" class="hidden bg-white border-b p-3 shrink-0 overflow-auto max-h-[45vh]">
   <div class="max-w-[1600px] mx-auto">
     <div class="grid grid-cols-2 lg:grid-cols-5 gap-2 mb-3">
       <div class="bg-[#0F2A44] text-white rounded-xl p-3"><div class="text-[10px] opacity-70 uppercase">Total Final</div><div id="kpiFinal" class="font-black text-sm">0 XOF</div><div id="kpiFinalDev" class="text-[10px] opacity-60"></div></div>
-      <div class="bg-green-50 border border-green-200 rounded-xl p-3"><div class="text-[10px] text-green-700 uppercase font-bold">EncaissÃ©</div><div id="kpiEncaisse" class="font-black text-sm text-green-700">0 XOF</div><div id="kpiEncaisseCount" class="text-[10px] text-green-600"></div></div>
+      <div class="bg-green-50 border border-green-200 rounded-xl p-3"><div class="text-[10px] text-green-700 uppercase font-bold">Encaissé</div><div id="kpiEncaisse" class="font-black text-sm text-green-700">0 XOF</div><div id="kpiEncaisseCount" class="text-[10px] text-green-600"></div></div>
       <div class="bg-orange-50 border border-orange-200 rounded-xl p-3"><div class="text-[10px] text-orange-700 uppercase font-bold">Reste</div><div id="kpiReste" class="font-black text-sm text-orange-700">0 XOF</div></div>
       <div class="bg-blue-50 border border-blue-200 rounded-xl p-3"><div class="text-[10px] text-blue-700 uppercase font-bold">Moy / cigare</div><div id="kpiMoy" class="font-black text-sm text-blue-700">0</div></div>
       <div class="bg-purple-50 border border-purple-200 rounded-xl p-3"><div class="text-[10px] text-purple-700 uppercase font-bold">Personnes</div><div id="kpiPers" class="font-black text-sm text-purple-700">0</div><div id="kpiSites" class="text-[10px] text-purple-600"></div></div>
     </div>
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
-      <div class="border rounded-xl p-3"><h4 class="font-bold text-xs mb-2">RÃ©partition par Site</h4><canvas id="chartSite" height="180"></canvas></div>
+      <div class="border rounded-xl p-3"><h4 class="font-bold text-xs mb-2">Répartition par Site</h4><canvas id="chartSite" height="180"></canvas></div>
       <div class="border rounded-xl p-3"><h4 class="font-bold text-xs mb-2">Top montants</h4><canvas id="chartTop" height="180"></canvas></div>
-      <div class="border rounded-xl p-3"><h4 class="font-bold text-xs mb-2">Ã‰volution historique</h4><canvas id="chartHist" height="180"></canvas></div>
+      <div class="border rounded-xl p-3"><h4 class="font-bold text-xs mb-2">Évolution historique</h4><canvas id="chartHist" height="180"></canvas></div>
     </div>
     <div class="flex gap-2 mt-3">
-      <button onclick="relancerImpayes()" class="bg-red-500 text-white px-4 py-2 rounded-full text-xs font-bold">ðŸ”” Relancer impayÃ©s</button>
-      <button onclick="exportExcel()" class="bg-[#0F2A44] text-white px-4 py-2 rounded-full text-xs font-bold">ðŸ“Š Export</button>
+      <button onclick="relancerImpayes()" class="bg-red-500 text-white px-4 py-2 rounded-full text-xs font-bold">🔔 Relancer impayés</button>
+      <button onclick="exportExcel()" class="bg-[#0F2A44] text-white px-4 py-2 rounded-full text-xs font-bold">📊 Export</button>
     </div>
   </div>
 </div>
 <main class="flex-1 p-3 lg:p-4 grid grid-cols-1 lg:grid-cols-12 gap-4 max-w-[1600px] mx-auto w-full lg:overflow-hidden overflow-auto">
   <div class="lg:col-span-3 flex flex-col gap-3 lg:overflow-auto">
     <div class="bg-white rounded-2xl border p-4 card">
-      <h2 class="font-bold text-xs uppercase text-gray-500">1. ParamÃ¨tres</h2>
+      <h2 class="font-bold text-xs uppercase text-gray-500">1. Paramètres</h2>
       <div class="grid grid-cols-2 gap-2 mt-2">
         <select id="devise" onchange="save();calculer()" class="border rounded p-2 bg-gray-50 text-sm"><option>USD</option><option>EUR</option><option>GBP</option></select>
         <input id="taux" type="number" oninput="save();calculer()" placeholder="Taux fallback" class="border rounded p-2 bg-gray-50 font-black text-sm">
       </div>
-      <p class="text-[10px] text-green-600 mt-1 font-bold">Frais PAYS dÃ©sactivÃ© - frais dÃ©duits du site uniquement</p>
+      <p class="text-[10px] text-green-600 mt-1 font-bold">Frais PAYS désactivé - frais déduits du site uniquement</p>
       <div class="flex gap-2 mt-2">
         <input id="pinInput" type="password" placeholder="PIN (optionnel)" class="border rounded p-1.5 text-xs flex-1">
         <button onclick="savePin()" class="bg-[#0F2A44] text-white px-3 py-1 rounded-full text-xs">OK</button>
@@ -146,7 +161,7 @@ input:invalid, select:invalid { border-color:#ef4444 !important; box-shadow:0 0 
       <label class="text-[10px] opacity-70">Facture XOF</label><input id="factureTransit" type="number" oninput="calculer()" class="w-full rounded p-2 text-[#0F2A44] font-black text-sm">
       <label class="text-[10px] opacity-70 mt-2 block">Poids kg</label><input id="poidsTotal" type="number" step="0.1" oninput="calculer()" class="w-full rounded p-2 text-[#0F2A44] font-black text-sm">
       <div class="bg-white/10 rounded p-2 mt-2 text-xs flex justify-between"><span>Prix/cigare</span><b id="prixParCigare" class="text-orange-300">0</b></div>
-      <div class="bg-white/10 rounded p-2 text-xs flex justify-between opacity-60"><span>QtÃ© totale</span><b id="qteTotale">0</b></div>
+      <div class="bg-white/10 rounded p-2 text-xs flex justify-between opacity-60"><span>Qté totale</span><b id="qteTotale">0</b></div>
       <div class="bg-white/10 rounded p-2 mt-1 text-xs flex justify-between opacity-60"><span>Prix/kg</span><b id="prixParKg">0</b></div>
     </div>
   </div>
@@ -154,40 +169,40 @@ input:invalid, select:invalid { border-color:#ef4444 !important; box-shadow:0 0 
     <div class="p-3 border-b">
       <div class="flex justify-between items-center"><h2 class="font-bold text-xs uppercase text-gray-500">Personnes</h2><button onclick="ajouterPersonne()" class="bg-[#0F2A44] text-white px-3 py-1 rounded-full text-xs font-bold">+ Ajouter</button></div>
       <div class="grid grid-cols-2 gap-1 mt-2">
-        <input id="searchPers" oninput="debouncedRender()" placeholder="ðŸ” Nom / Tel (Ctrl+K)" class="border rounded p-1.5 text-xs">
+        <input id="searchPers" oninput="debouncedRender()" placeholder="🔍 Nom / Tel (Ctrl+K)" class="border rounded p-1.5 text-xs">
         <select id="filterSite" onchange="render()" class="border rounded p-1.5 text-xs"><option value="">Tous sites</option></select>
       </div>
       <div class="grid grid-cols-2 gap-1 mt-1">
-        <select id="filterStatut" onchange="render()" class="border rounded p-1.5 text-xs"><option value="">Tous statuts</option><option value="paye">âœ… PayÃ©</option><option value="impaye">âŒ ImpayÃ©</option><option value="partiel">âš ï¸ Partiel</option></select>
-        <select id="sortPers" onchange="render()" class="border rounded p-1.5 text-xs"><option value="">Tri dÃ©faut</option><option value="nom">Nom A-Z</option><option value="montant_desc">Montant â†“</option><option value="montant_asc">Montant â†‘</option><option value="qte_desc">QtÃ© â†“</option></select>
+        <select id="filterStatut" onchange="render()" class="border rounded p-1.5 text-xs"><option value="">Tous statuts</option><option value="paye">✅ Payé</option><option value="impaye">❌ Impayé</option><option value="partiel">⚠️ Partiel</option></select>
+        <select id="sortPers" onchange="render()" class="border rounded p-1.5 text-xs"><option value="">Tri défaut</option><option value="nom">Nom A-Z</option><option value="montant_desc">Montant ↓</option><option value="montant_asc">Montant ↑</option><option value="qte_desc">Qté ↓</option></select>
       </div>
       <div class="mt-1"><select id="filterProjet" onchange="render()" class="w-full border rounded p-1.5 text-xs bg-amber-50 font-bold"><option value="">Tous projets</option></select></div>
-      <div id="filterInfo" class="text-[10px] text-gray-400 mt-1"></div><button id="btnTerminerProjet" onclick="terminerProjetCourant()" class="hidden mt-2 w-full bg-red-600 text-white px-3 py-2 rounded-full text-xs font-black">ðŸ”’ Terminer projet <span id="terminerCode"></span></button><div id="autoSaveDot" class="text-[10px] text-gray-400 mt-1"></div>
+      <div id="filterInfo" class="text-[10px] text-gray-400 mt-1"></div><button id="btnTerminerProjet" onclick="terminerProjetCourant()" class="hidden mt-2 w-full bg-red-600 text-white px-3 py-2 rounded-full text-xs font-black">🔒 Terminer projet <span id="terminerCode"></span></button><div id="autoSaveDot" class="text-[10px] text-gray-400 mt-1"></div>
     </div>
-    <div class="flex-1 overflow-auto overflow-x-auto"><table class="min-w-[680px]" class="w-full text-xs"><thead class="text-[10px] text-gray-400 sticky top-0 bg-white"><tr><th class="p-2 text-left">Nom/Tel</th><th class="p-1 text-center">Projet</th><th class="p-1">Montant</th><th class="p-1">QtÃ©</th><th class="p-1">Site</th><th class="p-1 text-left">Lien / Capture</th><th class="p-1">Statut</th><th></th></tr></thead><tbody id="tbody"></tbody></table></div>
-    <div class="p-2 bg-gray-50 border-t text-xs"><div class="flex justify-between"><span>Total Phase 1</span><b id="totalPhase1">0 XOF</b></div><div class="flex justify-between opacity-60 text-[11px]"><span id="totalPhase1Devise"></span><span id="totalPhase1XOF"></span></div><div class="flex justify-between text-[11px] mt-1"><span class="text-green-700">EncaissÃ©: <b id="totalEncaisse">0</b></span><span class="text-orange-600">Reste: <b id="totalReste">0</b></span></div></div>
+    <div class="flex-1 overflow-auto overflow-x-auto"><table class="min-w-[680px]" class="w-full text-xs"><thead class="text-[10px] text-gray-400 sticky top-0 bg-white"><tr><th class="p-2 text-left">Nom/Tel</th><th class="p-1 text-center">Projet</th><th class="p-1">Montant</th><th class="p-1">Qté</th><th class="p-1">Site</th><th class="p-1 text-left">Lien / Capture</th><th class="p-1">Statut</th><th></th></tr></thead><tbody id="tbody"></tbody></table></div>
+    <div class="p-2 bg-gray-50 border-t text-xs"><div class="flex justify-between"><span>Total Phase 1</span><b id="totalPhase1">0 XOF</b></div><div class="flex justify-between opacity-60 text-[11px]"><span id="totalPhase1Devise"></span><span id="totalPhase1XOF"></span></div><div class="flex justify-between text-[11px] mt-1"><span class="text-green-700">Encaissé: <b id="totalEncaisse">0</b></span><span class="text-orange-600">Reste: <b id="totalReste">0</b></span></div></div>
   </div>
   <div class="lg:col-span-5 flex flex-col gap-3 lg:overflow-hidden">
-    <div class="bg-white rounded-2xl border p-3 flex-1 overflow-hidden flex flex-col min-h-[280px]"><h3 class="font-black text-sm">ðŸ’° PHASE 1 - avec frais dÃ©duits</h3><div id="resultatsPhase1" class="grid grid-cols-2 gap-2 mt-2 overflow-auto"></div><div class="grid grid-cols-2 gap-2 mt-2"><button onclick="ouvrirModalEnvoi('phase1')" class="bg-green-600 text-white rounded-full py-2 text-xs font-bold">WA Groupe P1</button><button onclick="genererPDFGlobal()" class="bg-orange-600 text-white rounded-full py-2 text-xs font-bold">PDF Global</button></div></div>
-    <div class="bg-[#0F2A44] text-white rounded-2xl p-3 flex-1 overflow-hidden flex flex-col min-h-[280px]"><h3 class="font-black text-sm">ðŸ“¦ PHASE 2 FINAL</h3><div id="resultatsPhase2" class="space-y-2 mt-2 overflow-auto"></div><div class="bg-white text-[#0F2A44] rounded-xl p-2 mt-2"><div class="flex justify-between font-bold text-xs"><span>TOTAL FINAL</span><span id="totalFinal"></span></div><div class="flex justify-between text-xs opacity-60"><span id="totalFinalDevise"></span><span>XOF</span></div></div></div>
+    <div class="bg-white rounded-2xl border p-3 flex-1 overflow-hidden flex flex-col min-h-[280px]"><h3 class="font-black text-sm">💰 PHASE 1 - avec frais déduits</h3><div id="resultatsPhase1" class="grid grid-cols-2 gap-2 mt-2 overflow-auto"></div><div class="grid grid-cols-2 gap-2 mt-2"><button onclick="ouvrirModalEnvoi('phase1')" class="bg-green-600 text-white rounded-full py-2 text-xs font-bold">WA Groupe P1</button><button onclick="genererPDFGlobal()" class="bg-orange-600 text-white rounded-full py-2 text-xs font-bold">PDF Global</button></div></div>
+    <div class="bg-[#0F2A44] text-white rounded-2xl p-3 flex-1 overflow-hidden flex flex-col min-h-[280px]"><h3 class="font-black text-sm">📦 PHASE 2 FINAL</h3><div id="resultatsPhase2" class="space-y-2 mt-2 overflow-auto"></div><div class="bg-white text-[#0F2A44] rounded-xl p-2 mt-2"><div class="flex justify-between font-bold text-xs"><span>TOTAL FINAL</span><span id="totalFinal"></span></div><div class="flex justify-between text-xs opacity-60"><span id="totalFinalDevise"></span><span>XOF</span></div></div></div>
   </div>
 </main>
 <div id="modalQR" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"><div class="bg-white rounded-2xl p-6 max-w-sm w-full text-center"><h3 id="qrNom" class="font-black"></h3><p id="qrMsg" class="text-xs text-gray-500 whitespace-pre-wrap break-words"></p><div class="flex justify-center my-3 p-3 border rounded-xl"><canvas id="qrCanvas"></canvas></div><div class="grid grid-cols-2 gap-2"><button onclick="closeQR()" class="bg-gray-100 py-2 rounded-full font-bold">Fermer</button><a id="qrLink" target="_blank" class="bg-green-500 text-white py-2 rounded-full font-bold text-center">Ouvrir WA</a></div></div></div>
-<div id="modalEnvoi" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"><div class="bg-white rounded-2xl p-4 max-w-lg w-full max-h-[85vh] overflow-auto"><div class="flex justify-between"><h3 id="envoiTitre" class="font-black">Envoi Groupe</h3><button onclick="closeEnvoi()">âœ•</button></div><div id="envoiBody" class="space-y-2 mt-3"></div><button onclick="envoyerTousWhatsApp()" class="w-full mt-4 bg-green-500 text-white py-2.5 rounded-full font-bold">ðŸš€ Tout ouvrir</button></div></div>
+<div id="modalEnvoi" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"><div class="bg-white rounded-2xl p-4 max-w-lg w-full max-h-[85vh] overflow-auto"><div class="flex justify-between"><h3 id="envoiTitre" class="font-black">Envoi Groupe</h3><button onclick="closeEnvoi()">✕</button></div><div id="envoiBody" class="space-y-2 mt-3"></div><button onclick="envoyerTousWhatsApp()" class="w-full mt-4 bg-green-500 text-white py-2.5 rounded-full font-bold">🚀 Tout ouvrir</button></div></div>
 <div id="modalHist" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
   <div class="bg-white rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden">
     <div class="p-4 border-b shrink-0">
       <div class="flex justify-between items-center">
-        <h3 class="font-black text-lg">ðŸ“ Projets</h3><span class="text-[10px] bg-[#0A0A0A] text-[#C9A86A] px-2 py-1 rounded-full font-bold">codes ACSC-YYYY-####</span><span id="histCountEnCours" class="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded-full font-bold hidden">0 En cours</span><span id="histCountCloture" class="text-[10px] bg-red-100 text-red-700 px-2 py-1 rounded-full font-bold hidden">0 ClÃ´turÃ©</span>
+        <h3 class="font-black text-lg">📁 Projets</h3><span class="text-[10px] bg-[#0A0A0A] text-[#C9A86A] px-2 py-1 rounded-full font-bold">codes ACSC-YYYY-####</span><span id="histCountEnCours" class="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded-full font-bold hidden">0 En cours</span><span id="histCountCloture" class="text-[10px] bg-red-100 text-red-700 px-2 py-1 rounded-full font-bold hidden">0 Clôturé</span>
         <div class="flex gap-2">
           <button id="purgeAutosaveBtn" onclick="purgeAutoSave()" class="bg-amber-50 text-amber-700 px-3 py-1.5 rounded-full text-xs font-bold border border-amber-200 hidden">Purger Auto-save</button><button onclick="viderHistorique()" class="bg-red-50 text-red-600 px-3 py-1.5 rounded-full text-xs font-bold border border-red-200">Vider projets</button>
-          <button onclick="closeHistorique()" class="bg-gray-100 px-3 py-1.5 rounded-full font-bold">âœ•</button>
+          <button onclick="closeHistorique()" class="bg-gray-100 px-3 py-1.5 rounded-full font-bold">✕</button>
         </div>
       </div>
       <div class="flex gap-2 mt-3">
-        <input id="searchHist" oninput="ouvrirHistorique(1)" placeholder="ðŸ” Code / titre / note / gÃ©rant" class="border rounded-full px-3 py-1.5 text-xs flex-1">
-        <select id="histStatut" onchange="ouvrirHistorique(1)" class="border rounded-full px-2 py-1.5 text-xs"><option value="">Tous statuts</option><option value="en_cours">En cours</option><option value="cloture">ClÃ´turÃ©</option></select>
-        <select id="histSort" onchange="ouvrirHistorique(1)" class="border rounded-full px-2 py-1.5 text-xs"><option value="date_desc">Plus rÃ©cents</option><option value="date_asc">Plus anciens</option><option value="code_asc">Code Aâ†’Z</option><option value="code_desc">Code Zâ†’A</option><option value="titre_asc">Titre Aâ†’Z</option></select><input id="histGerant" oninput="ouvrirHistorique(1)" placeholder="G\u00E9rant" class="border rounded-full px-2 py-1.5 text-xs w-24"><select id="histLimit" onchange="ouvrirHistorique(1)" class="border rounded-full px-2 py-1.5 text-xs"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option></select>
+        <input id="searchHist" oninput="ouvrirHistorique(1)" placeholder="🔍 Code / titre / note / gérant" class="border rounded-full px-3 py-1.5 text-xs flex-1">
+        <select id="histStatut" onchange="ouvrirHistorique(1)" class="border rounded-full px-2 py-1.5 text-xs"><option value="">Tous statuts</option><option value="en_cours">En cours</option><option value="cloture">Clôturé</option></select>
+        <select id="histSort" onchange="ouvrirHistorique(1)" class="border rounded-full px-2 py-1.5 text-xs"><option value="date_desc">Plus récents</option><option value="date_asc">Plus anciens</option><option value="code_asc">Code A→Z</option><option value="code_desc">Code Z→A</option><option value="titre_asc">Titre A→Z</option></select><input id="histGerant" oninput="ouvrirHistorique(1)" placeholder="G\u00E9rant" class="border rounded-full px-2 py-1.5 text-xs w-24"><select id="histLimit" onchange="ouvrirHistorique(1)" class="border rounded-full px-2 py-1.5 text-xs"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option></select>
       </div>
     </div>
     <div id="histBody" class="flex-1 overflow-auto p-3 space-y-2 bg-gray-50"></div>
@@ -198,24 +213,24 @@ input:invalid, select:invalid { border-color:#ef4444 !important; box-shadow:0 0 
   <div class="bg-white rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
     <div class="p-4 border-b flex justify-between items-center shrink-0">
       <h3 id="histDetailTitre" class="font-black"></h3>
-      <button onclick="closeHistDetail()" class="bg-gray-100 px-3 py-1.5 rounded-full font-bold">âœ•</button>
+      <button onclick="closeHistDetail()" class="bg-gray-100 px-3 py-1.5 rounded-full font-bold">✕</button>
     </div>
-    <div id="histDetailEdit" class="mx-4 mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl hidden"><div class="text-[10px] font-bold text-amber-700 mb-2">âœï¸ Modifier projet</div><div class="grid grid-cols-2 gap-2"><input id="editHistCode" placeholder="Code" class="border rounded-lg p-2 text-xs font-mono"><select id="editHistStatut" class="border rounded-lg p-2 text-xs"><option value="en_cours">En cours</option><option value="cloture">ClÃ´turÃ©</option></select></div><input id="editHistTitre" placeholder="Titre / Nom du projet" class="w-full border rounded-lg p-2 text-xs mt-2"><textarea id="editHistNote" placeholder="Note" class="w-full border rounded-lg p-2 text-xs mt-2" rows="2"></textarea><div class="flex gap-2 mt-2"><button id="btnSaveHistEdit" onclick="saveHistEdit()" class="flex-1 bg-[#0A0A0A] text-[#C9A86A] py-2 rounded-full font-bold text-xs">Enregistrer</button><span id="editHistStatus" class="text-[10px] self-center text-gray-400"></span></div></div><div id="histDetailBody" class="flex-1 overflow-auto p-4 space-y-2"></div>
+    <div id="histDetailEdit" class="mx-4 mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl hidden"><div class="text-[10px] font-bold text-amber-700 mb-2">✏️ Modifier projet</div><div class="grid grid-cols-2 gap-2"><input id="editHistCode" placeholder="Code" class="border rounded-lg p-2 text-xs font-mono"><select id="editHistStatut" class="border rounded-lg p-2 text-xs"><option value="en_cours">En cours</option><option value="cloture">Clôturé</option></select></div><input id="editHistTitre" placeholder="Titre / Nom du projet" class="w-full border rounded-lg p-2 text-xs mt-2"><textarea id="editHistNote" placeholder="Note" class="w-full border rounded-lg p-2 text-xs mt-2" rows="2"></textarea><div class="flex gap-2 mt-2"><button id="btnSaveHistEdit" onclick="saveHistEdit()" class="flex-1 bg-[#0A0A0A] text-[#C9A86A] py-2 rounded-full font-bold text-xs">Enregistrer</button><span id="editHistStatus" class="text-[10px] self-center text-gray-400"></span></div></div><div id="histDetailBody" class="flex-1 overflow-auto p-4 space-y-2"></div>
     <div class="p-3 border-t flex gap-2 shrink-0">
-      <button onclick="restaurerHistorique()" class="flex-1 bg-[#0F2A44] text-white py-2.5 rounded-full font-bold text-sm">â™»ï¸ Restaurer cet Ã©tat</button>
+      <button onclick="restaurerHistorique()" class="flex-1 bg-[#0F2A44] text-white py-2.5 rounded-full font-bold text-sm">♻️ Restaurer cet état</button>
       <button onclick="closeHistDetail()" class="bg-gray-100 px-4 py-2.5 rounded-full font-bold text-sm">Fermer</button>
     </div>
   </div>
 </div>
 <div id="modalSaveHist" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
   <div class="bg-white rounded-2xl p-5 w-full max-w-md">
-    <h3 class="font-black text-lg">ðŸ’¾ Nouveau projet</h3>
-    <div class="grid grid-cols-2 gap-2 mt-3"><input id="histCode" placeholder="Code (auto: ACSC-YYYY-####)" pattern="ACSC-\d{4}-\d{4,5}" title="Format ACSC-YYYY-####" class="border rounded-xl p-2.5 text-sm font-mono" oninput="validateHistCode()"><select id="histStatutNew" class="border rounded-xl p-2.5 text-sm"><option value="en_cours">En cours</option><option value="cloture">ClÃ´turÃ©</option></select></div>
+    <h3 class="font-black text-lg">💾 Nouveau projet</h3>
+    <div class="grid grid-cols-2 gap-2 mt-3"><input id="histCode" placeholder="Code (auto: ACSC-YYYY-####)" pattern="ACSC-\d{4}-\d{4,5}" title="Format ACSC-YYYY-####" class="border rounded-xl p-2.5 text-sm font-mono" oninput="validateHistCode()"><select id="histStatutNew" class="border rounded-xl p-2.5 text-sm"><option value="en_cours">En cours</option><option value="cloture">Clôturé</option></select></div>
     <div id="histCodeError" class="text-[10px] text-red-600 hidden col-span-2"></div><p id="histCodeHint" class="text-[10px] text-gray-400 mt-1"></p><input id="histTitre" placeholder="Titre (ex: Commande Decembre Cuba)" class="w-full border rounded-xl p-2.5 mt-3 text-sm">
     <textarea id="histNote" placeholder="Note (optionnel)" class="w-full border rounded-xl p-2.5 mt-2 text-sm" rows="2"></textarea>
     <div class="flex gap-2 mt-4">
       <button onclick="closeSaveHist()" class="flex-1 bg-gray-100 py-2.5 rounded-full font-bold">Annuler</button>
-      <button id="btnCreerProjet" onclick="confirmSauvegarder()" class="flex-1 bg-[#0A0A0A] text-[#C9A86A] py-2.5 rounded-full font-bold">CrÃ©er projet</button>
+      <button id="btnCreerProjet" onclick="confirmSauvegarder()" class="flex-1 bg-[#0A0A0A] text-[#C9A86A] py-2.5 rounded-full font-bold">Créer projet</button>
     </div>
   </div>
 </div>
@@ -231,28 +246,32 @@ input:invalid, select:invalid { border-color:#ef4444 !important; box-shadow:0 0 
 </div>
 <div id="modalPin" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
   <div class="bg-white rounded-2xl p-6 w-full max-w-sm text-center">
-    <h3 class="font-black">ðŸ”’ PIN GÃ©rant</h3>
-    <p class="text-xs text-gray-500 mt-1">DÃ©finis un PIN pour protÃ©ger l'accÃ¨s</p>
+    <h3 class="font-black">🔒 PIN Gérant</h3>
+    <p class="text-xs text-gray-500 mt-1">Définis un PIN pour protéger l'accès</p>
     <input id="pinModalInput" type="password" placeholder="PIN" class="w-full border rounded-xl p-3 mt-3 text-center text-lg tracking-widest">
     <div class="flex gap-2 mt-4">
       <button onclick="closePinModal()" class="flex-1 bg-gray-100 py-2.5 rounded-full font-bold">Fermer</button>
       <button onclick="savePinModal()" class="flex-1 bg-[#0F2A44] text-white py-2.5 rounded-full font-bold">Enregistrer</button>
     </div>
-    <button onclick="checkPin()" class="w-full mt-2 bg-green-500 text-white py-2 rounded-full font-bold text-sm">VÃ©rifier PIN</button>
+    <button onclick="checkPin()" class="w-full mt-2 bg-green-500 text-white py-2 rounded-full font-bold text-sm">Vérifier PIN</button>
     <div id="pinStatus" class="text-xs mt-2"></div>
   </div>
 </div>
 <div id="toast" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 bg-[#0F2A44] text-white px-5 py-3 rounded-full text-sm font-bold shadow-xl z-50 max-w-[90vw] text-center"></div>
-<div id="undoBar" class="hidden fixed bottom-20 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-4 py-3 rounded-xl text-sm z-50 flex items-center gap-3"><span id="undoMsg"></span><button onclick="undoDelete()" class="bg-yellow-500 text-black px-3 py-1 rounded-full font-bold text-xs">Annuler</button><button onclick="hideUndo()" class="text-white/60">âœ•</button></div>
-<div id="acscConsent" class="hidden fixed bottom-0 inset-x-0 bg-[#0A0A0A] text-white px-4 py-3 flex flex-wrap items-center justify-between gap-3 z-[60] border-t border-[#C9A86A]/30"><span class="text-xs">ðŸª ACSC utilise uniquement le stockage local (projets, prÃ©fÃ©rences). Aucune pub. <a href="/politique-confidentialite.html" class="underline text-[#C9A86A]">En savoir plus</a></span><span class="flex gap-2"><button onclick="acscConsent(1)" class="bg-[#C9A86A] text-[#0A0A0A] px-4 py-1.5 rounded-full text-xs font-bold">Accepter</button><button onclick="acscConsent(0)" class="bg-white/10 px-4 py-1.5 rounded-full text-xs">Refuser</button></span></div>
-<footer class="text-center text-[10px] text-gray-400 py-3 border-t">ACSC v8.6 â€” <a href="/politique-confidentialite.html" class="underline">ConfidentialitÃ©</a> Â· <a href="/teaser.html" class="underline">Teaser</a> Â· Stockage local Â· WAL</footer>
+<div id="undoBar" class="hidden fixed bottom-20 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-4 py-3 rounded-xl text-sm z-50 flex items-center gap-3"><span id="undoMsg"></span><button onclick="undoDelete()" class="bg-yellow-500 text-black px-3 py-1 rounded-full font-bold text-xs">Annuler</button><button onclick="hideUndo()" class="text-white/60">✕</button></div>
+<div id="acscConsent" class="hidden fixed bottom-0 inset-x-0 bg-[#0A0A0A] text-white px-4 py-3 flex flex-wrap items-center justify-between gap-3 z-[60] border-t border-[#C9A86A]/30"><span class="text-xs">🍪 ACSC utilise uniquement le stockage local (projets, préférences). Aucune pub. <a href="/politique-confidentialite.html" class="underline text-[#C9A86A]">En savoir plus</a></span><span class="flex gap-2"><button onclick="acscConsent(1)" class="bg-[#C9A86A] text-[#0A0A0A] px-4 py-1.5 rounded-full text-xs font-bold">Accepter</button><button onclick="acscConsent(0)" class="bg-white/10 px-4 py-1.5 rounded-full text-xs">Refuser</button></span></div>
+<div id="mobileBottomBar" class="mobile-bottom-bar lg:hidden bg-white/95 border-t px-3 py-2 flex gap-2 safe-pb shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
+  <button onclick="ajouterPersonne()" class="flex-1 bg-[#0A0A0A] text-white py-3 rounded-full font-black text-sm active:scale-[0.98]">＋ Ajouter</button>
+  <button onclick="calculer()" class="bg-[#C9A86A] text-[#0A0A0A] px-6 py-3 rounded-full font-black text-sm">Calculer</button>
+</div>
+<footer class="text-center text-[10px] text-gray-400 py-3 border-t">ACSC v8.6 — <a href="/politique-confidentialite.html" class="underline">Confidentialité</a> · <a href="/teaser.html" class="underline">Teaser</a> · Stockage local · WAL</footer>
 <script>
 (function(){try{
  // consent v8.6
  var k='acsc_consent';
  if(!localStorage.getItem(k)) document.getElementById('acscConsent').classList.remove('hidden');
  window.acscConsent=function(v){ localStorage.setItem(k, v?'1':'0'); document.getElementById('acscConsent').classList.add('hidden'); };
- // purge acsc_notify >13 mois (â‰ˆ395j)
+ // purge acsc_notify >13 mois (≈395j)
  try{ var lst=JSON.parse(localStorage.getItem('acsc_notify')||'[]'); var lim=Date.now()-395*864e5; var f=lst.filter(function(x){ return new Date(x.date).getTime()>lim; }); if(f.length!==lst.length) localStorage.setItem('acsc_notify', JSON.stringify(f)); }catch(e){}
 }catch(e){}
  if('serviceWorker' in navigator){ navigator.serviceWorker.register('/sw.js').catch(()=>{}); }
@@ -274,7 +293,7 @@ input:invalid, select:invalid { border-color:#ef4444 !important; box-shadow:0 0 
 <!-- v8.6 Lien commande WhatsApp - lie au projet selectionne -->
 <div id="modalPartage" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
   <div class="bg-white rounded-2xl p-5 w-full max-w-md">
-    <h3 class="font-black">ðŸ”— Lien commande WhatsApp</h3>
+    <h3 class="font-black">🔗 Lien commande WhatsApp</h3>
     <p class="text-xs text-gray-500 mt-1">Le lien est lie au projet. Sans projet, la commande sera refusee.</p>
     <div id="partageProjetPick" class="mt-3"></div>
     <div class="mt-3 bg-gray-50 border rounded-xl p-3 flex items-center gap-2">
@@ -295,18 +314,18 @@ input:invalid, select:invalid { border-color:#ef4444 !important; box-shadow:0 0 
 <!-- Modals details commande -->
 <div id="modalCapture" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onclick="if(event.target===this) closeCaptureModal()">
   <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-auto p-4 shadow-xl">
-    <div class="flex justify-between items-start gap-2"><div><h3 class="font-black text-sm">Capture produit</h3><p id="captureMeta" class="text-[10px] text-gray-500 font-mono mt-1"></p><a id="captureLien" href="#" target="_blank" class="text-xs text-blue-600 underline break-all mt-1 block"></a></div><button onclick="closeCaptureModal()" class="bg-gray-100 rounded-full w-8 h-8 flex items-center justify-center shrink-0">âœ•</button></div>
+    <div class="flex justify-between items-start gap-2"><div><h3 class="font-black text-sm">Capture produit</h3><p id="captureMeta" class="text-[10px] text-gray-500 font-mono mt-1"></p><a id="captureLien" href="#" target="_blank" class="text-xs text-blue-600 underline break-all mt-1 block"></a></div><button onclick="closeCaptureModal()" class="bg-gray-100 rounded-full w-8 h-8 flex items-center justify-center shrink-0">✕</button></div>
     <img id="capturePreviewImg" src="" class="w-full rounded-xl border mt-3 object-contain max-h-[65vh] bg-gray-50">
     <div class="flex gap-2 mt-3"><a id="captureLienBtn" href="#" target="_blank" onclick="const h=document.getElementById('captureLien'); this.href=h.href;" class="flex-1 bg-blue-600 text-white py-2 rounded-full font-bold text-center text-sm">Ouvrir le lien produit</a><button onclick="closeCaptureModal()" class="bg-gray-100 px-6 py-2 rounded-full font-bold text-sm">Fermer</button></div>
   </div>
 </div>
 <div id="modalPersDetail" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onclick="if(event.target===this) closeDetailPers()">
   <div class="bg-white rounded-2xl max-w-xl w-full max-h-[90vh] overflow-auto shadow-xl">
-    <div class="p-4 border-b flex justify-between items-center"><h3 class="font-black">DÃ©tails commande</h3><button onclick="closeDetailPers()" class="bg-gray-100 rounded-full w-8 h-8">âœ•</button></div>
+    <div class="p-4 border-b flex justify-between items-center"><h3 class="font-black">Détails commande</h3><button onclick="closeDetailPers()" class="bg-gray-100 rounded-full w-8 h-8">✕</button></div>
     <div class="p-4 space-y-3 text-sm">
-      <div class="grid grid-cols-2 gap-3 text-xs"><div><span class="text-gray-400">Nom</span><div id="detailNom" class="font-bold"></div></div><div><span class="text-gray-400">TÃ©lÃ©phone</span><div id="detailTel" class="font-mono font-bold"></div></div><div><span class="text-gray-400">Projet</span><div id="detailProjet" class="font-mono font-bold text-amber-700"></div></div><div><span class="text-gray-400">Site</span><div id="detailSite" class="font-bold"></div></div><div><span class="text-gray-400">Montant</span><div id="detailMontant" class="font-bold"></div></div><div><span class="text-gray-400">QuantitÃ©</span><div id="detailQte" class="font-bold"></div></div><div><span class="text-gray-400">Statut</span><div id="detailStatut" class="font-bold"></div></div></div>
-      <div class="border-t pt-3"><span class="text-gray-400 text-xs">Lien produit</span><div class="mt-1"><a id="detailLien" href="#" target="_blank" class="text-blue-600 underline break-all text-xs"></a><span id="detailLienEmpty" class="text-gray-300 text-xs">â€” aucun lien</span></div></div>
-      <div class="border-t pt-3"><span class="text-gray-400 text-xs">Capture / Justificatif</span><img id="detailCaptureImg" src="" class="w-full rounded-xl border mt-2 object-contain max-h-[50vh] bg-gray-50 hidden"><div id="detailCaptureEmpty" class="text-gray-300 text-xs mt-2">â€” aucune capture</div></div>
+      <div class="grid grid-cols-2 gap-3 text-xs"><div><span class="text-gray-400">Nom</span><div id="detailNom" class="font-bold"></div></div><div><span class="text-gray-400">Téléphone</span><div id="detailTel" class="font-mono font-bold"></div></div><div><span class="text-gray-400">Projet</span><div id="detailProjet" class="font-mono font-bold text-amber-700"></div></div><div><span class="text-gray-400">Site</span><div id="detailSite" class="font-bold"></div></div><div><span class="text-gray-400">Montant</span><div id="detailMontant" class="font-bold"></div></div><div><span class="text-gray-400">Quantité</span><div id="detailQte" class="font-bold"></div></div><div><span class="text-gray-400">Statut</span><div id="detailStatut" class="font-bold"></div></div></div>
+      <div class="border-t pt-3"><span class="text-gray-400 text-xs">Lien produit</span><div class="mt-1"><a id="detailLien" href="#" target="_blank" class="text-blue-600 underline break-all text-xs"></a><span id="detailLienEmpty" class="text-gray-300 text-xs">— aucun lien</span></div></div>
+      <div class="border-t pt-3"><span class="text-gray-400 text-xs">Capture / Justificatif</span><img id="detailCaptureImg" src="" class="w-full rounded-xl border mt-2 object-contain max-h-[50vh] bg-gray-50 hidden"><div id="detailCaptureEmpty" class="text-gray-300 text-xs mt-2">— aucune capture</div></div>
     </div>
   </div>
 </div>
@@ -334,7 +353,7 @@ function updatePartageLink(){
   const sel=document.getElementById('partageCode');
   const hasCode=sel && sel.value;
   if(hint) hint.classList.toggle('hidden', !!hasCode);
-  const wa='https://wa.me/?text='+encodeURIComponent('ðŸ“¦ Passe ta commande ACSC ici : '+link+' â€” Remplis nom/tel + 1 a 3 articles (lien produit + capture) et ca arrive direct chez le gerant. Projet: '+(sel?sel.value:'' )+' â€” visible dans ACSC.');
+  const wa='https://wa.me/?text='+encodeURIComponent('📦 Passe ta commande ACSC ici : '+link+' — Remplis nom/tel + 1 a 3 articles (lien produit + capture) et ca arrive direct chez le gerant. Projet: '+(sel?sel.value:'' )+' — visible dans ACSC.');
   document.getElementById('btnWaPartage').href=wa;
   try{ const c=document.getElementById('qrLien'); if(window.QRCode && c) QRCode.toCanvas(c, link, {width:160, margin:1}); }catch(e){}
 }
