@@ -1,4 +1,6 @@
-// 02-storage.js - Load & Save (v8.8 - CORS/CSP fix + error handling visible)
+// 02-storage.js - Load & Save (v8.8.1 - polling temps reel gerant)
+let _lastKnownIds = new Set();
+let _pollingTimer = null;
 async function refreshFiltreProjet(){
   try{
     const r=await fetch('/api/projets');
@@ -32,11 +34,50 @@ async function load(){
     if($('gerantMobile')) $('gerantMobile').value = s.gerant || '';
     renderSites(); render();
     chargerBadgeHist(); refreshDark();
+    try{ _lastKnownIds = new Set(personnes.map(function(pp){return pp.id;})); }catch{}
     setInterval(()=>{ if(personnes.length>0) autoSaveHist(); }, 5*60*1000);
   }catch(e){
     console.error('[load] fatal', e);
     if(window.toast) toast('Erreur chargement: '+(e.message||e));
   }
+}
+// --- Polling temps reel gerant (fix "commande invisible") ---
+async function reloadPersonnes(opts){
+  const silent = opts && opts.silent;
+  try{
+    const rp=await fetch('/api/personnes');
+    if(!rp.ok) return;
+    let pers=await rp.json();
+    if(pers && pers.rows) pers=pers.rows;
+    pers=Array.isArray(pers)? pers : [];
+    const added = pers.filter(function(pp){ return !_lastKnownIds.has(pp.id); });
+    const hadLen = personnes.length;
+    personnes = pers;
+    _lastKnownIds = new Set(pers.map(function(pp){return pp.id;}));
+    render();
+    if(added.length){
+      if(!silent && typeof toast==='function') toast('🔔 '+added.length+' nouvelle(s) commande(s) !');
+      const badge=document.getElementById('newCmdBadge');
+      if(badge && added.length){
+        const fProjet=(document.getElementById('filterProjet')?.value||'').trim().toUpperCase();
+        const hiddenByFilter = fProjet ? added.filter(function(pp){return (pp.projetCode||'').toUpperCase()!==fProjet;}).length : 0;
+        if(hiddenByFilter>0 || hadLen!==pers.length){
+          badge.textContent='🔔 '+added.length+' nouvelle(s) - cliquez pour voir';
+          badge.classList.remove('hidden');
+          badge.onclick=function(){ const sel=document.getElementById('filterProjet'); if(sel) sel.value=''; _lastKnownIds=new Set(personnes.map(function(pp){return pp.id;})); badge.classList.add('hidden'); render(); };
+          badge.title='Filtre masque '+hiddenByFilter+' commande(s) - cliquer affiche Tous projets';
+        }
+      }
+      try{ if(navigator.vibrate) navigator.vibrate(120); }catch{}
+    }
+    if(!silent) try{ if(typeof chargerBadgeHist==='function') chargerBadgeHist(); }catch{}
+  }catch(e){ console.error('[reloadPersonnes]',e); }
+}
+function startPolling(){
+  if(_pollingTimer) clearInterval(_pollingTimer);
+  _pollingTimer=setInterval(function(){ reloadPersonnes({silent:false}); }, 12000);
+  document.addEventListener('visibilitychange', function(){ if(document.visibilityState==='visible') reloadPersonnes({silent:true}); });
+  window.addEventListener('focus', function(){ reloadPersonnes({silent:true}); });
 }
 async function autoSaveHist(){
   const code=(typeof getCurrentProjetCode==='function' ? getCurrentProjetCode() : '') || (document.getElementById('filterProjet')?.value||'').trim().toUpperCase();
@@ -84,5 +125,6 @@ document.addEventListener('DOMContentLoaded', function(){
       if(sel && code) sel.value=code;
       if(typeof updateTerminerBtn==='function') updateTerminerBtn();
     });
+    startPolling();
   });
 });
