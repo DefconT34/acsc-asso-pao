@@ -505,6 +505,81 @@ app.post('/api/commande', async (req,res)=>{
     res.json({ok:1, ids, projetCode, count:ids.length});
   }catch(e){ res.status(500).json({error:e.message}); }
 });
+
+// ---- PUBLIC API pour commande.html (sans auth) - alias de /api/commande* ----
+app.get('/api/public/sites', async (req,res)=>{
+  try{
+    const row=await dbGet('SELECT sites FROM settings WHERE id=1');
+    let sites=[];
+    try{ sites = JSON.parse(row && row.sites || '[]'); }catch(e){ sites=[]; }
+    if(!Array.isArray(sites) || !sites.length){
+      sites=[{id:'site1',label:'Site 1',taux:615,devise:'USD'},{id:'site2',label:'Site 2',taux:620,devise:'USD'},{id:'site3',label:'Site 3',taux:660,devise:'EUR'}];
+    }
+    res.json({ok:1, sites});
+  }catch(e){ res.status(500).json({error:e.message}); }
+});
+app.get('/api/public/projet', async (req,res)=>{
+  try{
+    const code=String(req.query.code||req.query.p||'').trim().toUpperCase();
+    if(!code) return res.status(400).json({error:'Code manquant (?p=ACSC-... ou ?code=...)'});
+    if(!/^ACSC-\d{4}-\d{4,5}$/.test(code)) return res.status(400).json({error:'Code projet invalide'});
+    const row=await dbGet('SELECT id,code,titre,note,date,gerant,statutProjet FROM historique WHERE code=?',[code]);
+    if(!row) return res.status(404).json({error:'Projet introuvable: '+code});
+    const srow=await dbGet('SELECT sites FROM settings WHERE id=1');
+    let sites=[];
+    try{ sites=JSON.parse(srow && srow.sites || '[]'); }catch(e){}
+    res.json({ok:1, projet:row, sites});
+  }catch(e){ res.status(500).json({error:e.message}); }
+});
+app.get('/api/public/mes-commandes', async (req,res)=>{
+  try{
+    const tel=String(req.query.telephone||'').trim();
+    const code=String(req.query.code||'').trim().toUpperCase();
+    if(!tel) return res.status(400).json({error:'Telephone requis'});
+    const digits=tel.replace(/\D/g,'').slice(-8);
+    let rows;
+    if(code){
+      rows=await dbAll("SELECT * FROM personnes WHERE projetCode=? AND replace(replace(replace(telephone,' ',''),'-',''),'+','') LIKE ? ORDER BY id DESC LIMIT 20",[code,'%'+digits]);
+    } else {
+      rows=await dbAll("SELECT * FROM personnes WHERE replace(replace(replace(telephone,' ',''),'-',''),'+','') LIKE ? ORDER BY id DESC LIMIT 20",['%'+digits]);
+    }
+    res.json({ok:1, rows});
+  }catch(e){ res.status(500).json({error:e.message}); }
+});
+app.post('/api/public/commande', async (req,res)=>{
+  try{
+    const b=req.body||{};
+    const projetCode=String(b.projetCode||'').trim().toUpperCase();
+    const nom=String(b.nom||'').trim();
+    const telephone=String(b.telephone||'').trim();
+    if(!projetCode) return res.status(400).json({error:'Projet requis (?p=ACSC-...)'});
+    if(!/^ACSC-\d{4}-\d{4,5}$/.test(projetCode)) return res.status(400).json({error:'Code projet invalide'});
+    const proj=await dbGet('SELECT code,statutProjet FROM historique WHERE code=?',[projetCode]);
+    if(!proj) return res.status(404).json({error:'Projet introuvable'});
+    if(proj.statutProjet==='cloture') return res.status(403).json({error:'Projet cloture - commande refusee'});
+    let items=[];
+    if(Array.isArray(b.items) && b.items.length) items=b.items;
+    else items=[{site:b.site,montant:b.montant,quantite:b.quantite,lienProduit:b.lienProduit||'',capture:b.capture||''}];
+    if(items.length<1) return res.status(400).json({error:'Au moins 1 article'});
+    if(items.length>10) return res.status(400).json({error:'Max 10 articles'});
+    for(let it of items){
+      if(!String(it.site||'').trim()) return res.status(400).json({error:'Site requis'});
+      if(!Number(it.montant)||Number(it.montant)<=0) return res.status(400).json({error:'Montant >0'});
+      if(!Number.isInteger(Number(it.quantite))||Number(it.quantite)<1) return res.status(400).json({error:'Qte >=1'});
+    }
+    const digits=telephone.replace(/\D/g,'');
+    const cnt=await dbGet("SELECT COUNT(*) as c FROM personnes WHERE projetCode=? AND replace(replace(replace(telephone,' ',''),'-',''),'+','') LIKE ?", [projetCode,'%'+digits.slice(-8)]);
+    if(Number((cnt && cnt.c)||0)+items.length>3) return res.status(429).json({error:'Limite 3 commandes par tel/projet'});
+    const ids=[];
+    for(let it of items){
+      const err=valPersonne({nom, montant:Number(it.montant), quantite:Number(it.quantite), site:String(it.site).trim(), telephone, statut:'impaye', lienProduit:it.lienProduit||'', capture:it.capture||''});
+      if(err) return res.status(400).json({error:err});
+      const r=await dbRun('INSERT INTO personnes(nom,montant,quantite,site,telephone,statut,projetCode,lienProduit,capture) VALUES(?,?,?,?,?,?,?,?,?)',[nom,Number(it.montant),parseInt(it.quantite),String(it.site).trim(),telephone,'impaye',projetCode,String(it.lienProduit||'').trim(),String(it.capture||'').trim()]);
+      ids.push(r.lastID);
+    }
+    res.json({ok:1,ids,projetCode,count:ids.length});
+  }catch(e){ res.status(500).json({error:e.message}); }
+});
 app.get('/api/health', (req,res) => { res.json({ ok: 1, version: '8.6-sqlite3', db: DB_PATH, uptime: process.uptime(), wal: true }); });
 app.get('/health', (req,res) => res.send('ok'));
 app.get('*', (req,res) => { if (req.path.startsWith('/api')) return res.status(404).json({ error: 'not found' }); res.sendFile(path.join(__dirname, 'public', 'index.html')); });
