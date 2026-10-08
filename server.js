@@ -371,7 +371,7 @@ app.post('/api/historique', async (req, res) => {
     titre = (titre || '').trim() || codeHistorique;
     const r = await dbRun(`INSERT INTO historique(date,gerant,totalFinal,data,titre,note,code,statutProjet) VALUES(?,?,?,?,?,?,?,?)`, [new Date().toLocaleString('fr-FR'), gerant || 'President', totalFinal || '', JSON.stringify(data), titre, note || '', codeHistorique, statutProjet]);
     res.json({ ok: 1, id: r.lastID, code: codeHistorique, statutProjet });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { console.error('[POST /api/historique]', e && e.stack || e); res.status(500).json({ error: e.message || String(e) }); }
 });
 app.patch('/api/historique/:id', async (req,res) => {
   try {

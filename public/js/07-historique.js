@@ -25,9 +25,12 @@ async function confirmSauvegarder(){
   const r2=await fetch('/api/historique',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({gerant:$('gerant').value||'President', totalFinal, data, code, statutProjet, titre, note})});
   if(!r2.ok){
     const j=await r2.json().catch(()=>({}));
+    console.error('[confirmSauvegarder] POST /api/historique', r2.status, j);
     if(r2.status===409 && j.suggestion){ const e=document.getElementById('histCodeError'); if(e){e.textContent=j.error+' -> suggestion: '+j.suggestion; e.classList.remove('hidden');} toast(j.error); return; }
     if(r2.status===400){ const e=document.getElementById('histCodeError'); if(e){e.textContent=j.error; e.classList.remove('hidden');} toast(j.error||'Erreur'); return; }
-    toast('Erreur sauvegarde'); return;
+    const msg=j.error||j.message||r2.statusText||'Erreur sauvegarde';
+    const e=document.getElementById('histCodeError'); if(e){e.textContent=msg+' (HTTP '+r2.status+')'; e.classList.remove('hidden');}
+    toast(msg+' (HTTP '+r2.status+')'); return;
   }
   const rj=await r2.json().catch(()=>({})); closeSaveHist(); if(rj.code){ toast('Projet '+rj.code+' cree'); if(typeof setCurrentProjet==='function') setCurrentProjet(rj.code, rj.id||null); const sel=document.getElementById('filterProjet'); if(sel) sel.value=rj.code; if(typeof updateTerminerBtn==='function') updateTerminerBtn(); } else toast('Sauvegarde OK'); const sb=document.getElementById('saveBanner'); if(sb) sb.classList.add('hidden'); chargerBadgeHist();
 }
