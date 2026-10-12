@@ -38,6 +38,15 @@ $HOME/
 .env.*
 !.env.example
 
+# Template white-label (hors prod assopao - garder local uniquement)
+template-neutre/
+redo_assopao.js
+redo_assopao_out.txt
+trigger_assopao.js
+trigger_assopao_out.txt
+fix_neutre*.js
+trigger_*.js
+
 # Deploiement o2switch
 passenger_wsgi.py
 .htaccess.bak
