@@ -147,6 +147,12 @@ jobs:
             **/verify_*.js
             **/test_live.js
             **/O2SWITCH_ODISSEY.txt
+            **/template-neutre/**
+            **/redo_*.js
+            **/redo_*.txt
+            **/trigger_*.js
+            **/trigger_*.txt
+            **/fix_neutre*.js
             **/.ftp-deploy-sync-state.json
 
       - name: SSH install best-effort
