@@ -83,14 +83,14 @@ jobs:
             rm -f "${{ secrets.O2SWITCH_PATH }}/.ftp-deploy-sync-state.json" 2>&1 || true
             rm -f "$HOME/${{ secrets.O2SWITCH_PATH }}/.ftp-deploy-sync-state.json" 2>&1 || true
 
-      - name: Deploy via FTP
+      - name: Deploy via SFTP (fix FTP tronquait public a css/ apres 126s)
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
         with:
           server: ${{ secrets.O2SWITCH_HOST }}
           username: ${{ secrets.O2SWITCH_USER }}
           password: ${{ secrets.O2SWITCH_PASSWORD }}
-          port: 21
-          protocol: ftp
+          port: 22
+          protocol: sftp
           local-dir: ./
           server-dir: ${{ secrets.O2SWITCH_PATH }}/
           log-level: verbose
