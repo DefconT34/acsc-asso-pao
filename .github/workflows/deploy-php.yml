@@ -94,7 +94,7 @@ jobs:
           local-dir: ./
           server-dir: ${{ secrets.O2SWITCH_PATH }}/
           log-level: verbose
-          timeout: 120000
+          timeout: 300000
           state-name: .ftp-deploy-sync-state.json
           exclude: |
             **/.git*
