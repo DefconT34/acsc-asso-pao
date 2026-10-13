@@ -47,12 +47,13 @@ jobs:
           HOST='${{ secrets.O2SWITCH_HOST }}'
           if echo "$HOST" | grep -qE '^https?://|/|:'; then echo "::error::HOST invalide - IP/host nu SANS https:// ni :port"; exit 1; fi
 
-      - name: Check DNS & FTP reachability
+      - name: Check DNS & SSH reachability
         run: |
           HOST='${{ secrets.O2SWITCH_HOST }}'
           echo "nslookup $HOST ..."
           nslookup "$HOST" 2>&1 || echo "::warning::DNS fail"
-          echo "TCP 21 test ..."
+          echo "TCP 22/21 test ..."
+          timeout 8 bash -c "cat < /dev/null > /dev/tcp/$HOST/22" && echo "TCP 22 OK" || echo "::warning::TCP 22 fail"
           timeout 8 bash -c "cat < /dev/null > /dev/tcp/$HOST/21" && echo "TCP 21 OK" || echo "::warning::TCP 21 fail"
 
       - name: Ensure .htaccess exists locally
@@ -83,14 +84,17 @@ jobs:
             rm -f "${{ secrets.O2SWITCH_PATH }}/.ftp-deploy-sync-state.json" 2>&1 || true
             rm -f "$HOME/${{ secrets.O2SWITCH_PATH }}/.ftp-deploy-sync-state.json" 2>&1 || true
 
-      - name: Deploy via SFTP (fix FTP tronquait public a css/ apres 126s)
+      - name: Deploy via FTP
+        id: ftp_deploy
+        continue-on-error: true
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
         with:
           server: ${{ secrets.O2SWITCH_HOST }}
           username: ${{ secrets.O2SWITCH_USER }}
           password: ${{ secrets.O2SWITCH_PASSWORD }}
-          port: 22
-          protocol: sftp
+          port: 21
+          protocol: ftp
+          security: loose
           local-dir: ./
           server-dir: ${{ secrets.O2SWITCH_PATH }}/
           log-level: verbose
@@ -110,6 +114,58 @@ jobs:
             **/api/config.local.php
             **/api/tmp/**
             **/old.yml
+
+      - name: Deploy via SSH (git fallback - garantit public complet si FTP tronque a css/)
+        if: always() && (steps.ftp_deploy.outcome == 'failure' || steps.ftp_deploy.outcome == 'cancelled')
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.O2SWITCH_HOST }}
+          username: ${{ secrets.O2SWITCH_USER }}
+          password: ${{ secrets.O2SWITCH_PASSWORD }}
+          key: ${{ secrets.O2SWITCH_SSH_KEY }}
+          port: ${{ secrets.O2SWITCH_PORT || 22 }}
+          timeout: 20s
+          command_timeout: 4m
+          script: |
+            set -e
+            TARGET="${{ secrets.O2SWITCH_PATH }}"
+            if [[ "$TARGET" = /* ]]; then ROOT="$TARGET"; else ROOT="$HOME/$TARGET"; fi
+            echo ">> GIT FALLBACK DEPLOY ROOT=$ROOT branch=${{ github.ref_name }}"
+            mkdir -p "$ROOT"
+            cd "$ROOT"
+            git config --global --add safe.directory "$ROOT" 2>/dev/null || true
+            if [ ! -d .git ]; then
+              echo ">> init git"
+              git init
+              git remote add origin https://github.com/${{ github.repository }}.git 2>/dev/null || git remote set-url origin https://github.com/${{ github.repository }}.git
+            else
+              git remote set-url origin https://github.com/${{ github.repository }}.git 2>/dev/null || git remote add origin https://github.com/${{ github.repository }}.git
+            fi
+            BRANCH="${{ github.ref_name }}"
+            echo ">> fetch $BRANCH"
+            git fetch origin "$BRANCH" --depth=1 || git fetch origin main --depth=1 || git fetch origin master --depth=1
+            if git show-ref --verify --quiet "refs/remotes/origin/$BRANCH"; then
+              echo ">> checkout $BRANCH"
+              git checkout -B "$BRANCH" "origin/$BRANCH"
+              git reset --hard "origin/$BRANCH"
+            elif git show-ref --verify --quiet refs/remotes/origin/main; then
+              echo ">> fallback main"
+              git checkout -B main origin/main
+              git reset --hard origin/main
+            else
+              echo ">> fallback master"
+              git checkout -B master origin/master
+              git reset --hard origin/master
+            fi
+            git clean -fd || true
+            echo ">> HEAD $(git rev-parse --short HEAD) $(git log -1 --oneline)"
+            ls -la | head -n 40
+            echo ">> public + api"
+            ls -la public/ | head -n 60
+            ls -la api/ | head -n 40
+            cat public/version.txt || true
+            cat .htaccess | head -n 20 || true
+            echo ">> GIT FALLBACK OK - $(date -u +%FT%TZ)"
 
       - name: SSH verify after deploy (best-effort)
         continue-on-error: true
