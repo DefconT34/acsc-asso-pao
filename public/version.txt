@@ -1,0 +1,6 @@
+ACSC v9.0-php
+deploy: 2026-10-13T11:05Z
+commit: force-redeploy-visible
+path: /home/koko6788/acsc-asso-pao
+health: /api/health -> api/health.php
+check: cat public/version.txt doit afficher cette date apres deploy
