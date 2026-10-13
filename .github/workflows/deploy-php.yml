@@ -4,6 +4,12 @@ on:
   push:
     branches: [main, master]
   workflow_dispatch:
+    inputs:
+      clean:
+        description: 'Vider acsc-asso-pao avant deploy (wipe complet)'
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: deploy-php
@@ -67,6 +73,8 @@ jobs:
           rm -f .ftp-deploy-sync-state.json
           ls -la public/ | head -n 30 || true
           echo "git public files: $(git ls-files public | wc -l)"
+          echo "commit msg: ${{ github.event.head_commit.message }}"
+          echo "inputs.clean: ${{ inputs.clean }}"
 
       - name: Purge remote FTP sync cache (force full upload)
         continue-on-error: true
@@ -83,6 +91,44 @@ jobs:
             set +e
             rm -f "${{ secrets.O2SWITCH_PATH }}/.ftp-deploy-sync-state.json" 2>&1 || true
             rm -f "$HOME/${{ secrets.O2SWITCH_PATH }}/.ftp-deploy-sync-state.json" 2>&1 || true
+            echo "remote .ftp-deploy-sync-state.json purged"
+
+      - name: "WIPE acsc-asso-pao (vide le repertoire si [clean] dans commit ou clean=true)"
+        if: contains(github.event.head_commit.message, '[clean]') || inputs.clean == true
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.O2SWITCH_HOST }}
+          username: ${{ secrets.O2SWITCH_USER }}
+          password: ${{ secrets.O2SWITCH_PASSWORD }}
+          key: ${{ secrets.O2SWITCH_SSH_KEY }}
+          port: ${{ secrets.O2SWITCH_PORT || 22 }}
+          timeout: 20s
+          command_timeout: 2m
+          script: |
+            set -e
+            TARGET="${{ secrets.O2SWITCH_PATH }}"
+            if [[ "$TARGET" = /* ]]; then ROOT="$TARGET"; else ROOT="$HOME/$TARGET"; fi
+            echo ">> WIPE DEMANDE - ROOT=$ROOT TARGET=$TARGET"
+            if [ -z "$ROOT" ] || [ "$ROOT" = "/" ] || [ "$ROOT" = "$HOME" ] || [ "$ROOT" = "$HOME/" ]; then
+              echo "!! REFUS WIPE ROOT invalide: $ROOT"; exit 1; fi
+            if [ -f "$ROOT/api/config.local.php" ]; then
+              cp "$ROOT/api/config.local.php" /tmp/acsc_config.local.php.bak
+              echo ">> backup api/config.local.php -> /tmp/acsc_config.local.php.bak"
+              ls -lh /tmp/acsc_config.local.php.bak || true
+            else
+              echo ">> aucun api/config.local.php a sauvegarder"
+              rm -f /tmp/acsc_config.local.php.bak
+            fi
+            echo ">> AVANT WIPE - liste"
+            ls -la "$ROOT" 2>&1 | head -n 60 || echo "dossier inexistant/vide"
+            du -sh "$ROOT" 2>&1 | head -n 5 || true
+            du -sh "$ROOT"/public 2>&1 | head -n 5 || true
+            echo ">> SUPPRESSION rm -rf $ROOT"
+            rm -rf "$ROOT" 2>&1
+            mkdir -p "$ROOT"
+            echo ">> APRES WIPE - vide"
+            ls -la "$ROOT" 2>&1
+            echo ">> WIPE OK - FTP + git fallback vont republier complet"
 
       - name: Deploy via FTP
         id: ftp_deploy
@@ -116,7 +162,7 @@ jobs:
             **/old.yml
 
       - name: Deploy via SSH (git fallback - garantit public complet si FTP tronque a css/)
-        if: always() && (steps.ftp_deploy.outcome == 'failure' || steps.ftp_deploy.outcome == 'cancelled')
+        if: always() && (contains(github.event.head_commit.message, '[clean]') || inputs.clean == true || steps.ftp_deploy.outcome == 'failure' || steps.ftp_deploy.outcome == 'cancelled')
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.O2SWITCH_HOST }}
@@ -167,6 +213,41 @@ jobs:
             cat .htaccess | head -n 20 || true
             echo ">> GIT FALLBACK OK - $(date -u +%FT%TZ)"
 
+      - name: Restore config.local.php after WIPE (si backup existe)
+        if: always() && (contains(github.event.head_commit.message, '[clean]') || inputs.clean == true)
+        continue-on-error: true
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.O2SWITCH_HOST }}
+          username: ${{ secrets.O2SWITCH_USER }}
+          password: ${{ secrets.O2SWITCH_PASSWORD }}
+          key: ${{ secrets.O2SWITCH_SSH_KEY }}
+          port: ${{ secrets.O2SWITCH_PORT || 22 }}
+          timeout: 15s
+          command_timeout: 1m
+          script: |
+            set +e
+            TARGET="${{ secrets.O2SWITCH_PATH }}"
+            if [[ "$TARGET" = /* ]]; then ROOT="$TARGET"; else ROOT="$HOME/$TARGET"; fi
+            echo ">> RESTORE config.local.php check"
+            if [ -f /tmp/acsc_config.local.php.bak ]; then
+              mkdir -p "$ROOT/api"
+              if [ ! -f "$ROOT/api/config.local.php" ]; then
+                cp /tmp/acsc_config.local.php.bak "$ROOT/api/config.local.php"
+                echo ">> config.local.php restaure depuis backup"
+              else
+                echo ">> config.local.php existe deja - backup conserve en /tmp"
+              fi
+              ls -lh "$ROOT/api/config.local.php" 2>&1 || true
+              cat "$ROOT/api/config.local.php" 2>&1 | head -n 20 || true
+            else
+              echo ">> aucun backup /tmp/acsc_config.local.php.bak"
+              if [ -f "$ROOT/api/config.local.example.php" ]; then
+                echo ">> exemple dispo: cp api/config.local.example.php -> api/config.local.php puis editer DB koko6788_acsc"
+              fi
+              ls -la "$ROOT/api/" 2>&1 | head -n 20 || true
+            fi
+
       - name: SSH verify after deploy (best-effort)
         continue-on-error: true
         uses: appleboy/ssh-action@v1.2.0
@@ -187,8 +268,39 @@ jobs:
             ls -la "${{ secrets.O2SWITCH_PATH }}/api/" 2>&1 | head -n 40 || ls -la "$HOME/${{ secrets.O2SWITCH_PATH }}/api/" 2>&1 | head -n 40 || true
             cat "${{ secrets.O2SWITCH_PATH }}/public/.htaccess" 2>&1 | head -n 20 || cat "$HOME/${{ secrets.O2SWITCH_PATH }}/public/.htaccess" 2>&1 | head -n 20 || true
 
+      - name: SSH verify public/version + api/health quick
+        continue-on-error: true
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.O2SWITCH_HOST }}
+          username: ${{ secrets.O2SWITCH_USER }}
+          password: ${{ secrets.O2SWITCH_PASSWORD }}
+          key: ${{ secrets.O2SWITCH_SSH_KEY }}
+          port: ${{ secrets.O2SWITCH_PORT || 22 }}
+          timeout: 15s
+          command_timeout: 2m
+          script: |
+            set +e
+            TARGET="${{ secrets.O2SWITCH_PATH }}"
+            if [[ "$TARGET" = /* ]]; then ROOT="$TARGET"; else ROOT="$HOME/$TARGET"; fi
+            echo ">> VERSION + PUBLIC"
+            cat "$ROOT/public/version.txt" 2>&1
+            echo ">> public file count"
+            find "$ROOT/public" -type f | wc -l
+            find "$ROOT/public" -maxdepth 2 -type f 2>&1 | head -n 40 || true
+            echo ">> htaccess"
+            cat "$ROOT/.htaccess" 2>&1 | head -n 25
+            cat "$ROOT/public/.htaccess" 2>&1 | head -n 20
+            echo ">> api health local (php)"
+            php -l "$ROOT/api/health.php" 2>&1 || true
+            php "$ROOT/api/health.php" 2>&1 | head -n 30 || echo "health php exec skip"
+
       - name: Post-deploy info
+        if: always()
         run: |
-          echo "=== FTP deploy PHP termine ==="
-          echo "Verifie: https://tondomaine/api/health et https://tondomaine/health"
-          echo "Si 500 sur /api/* -> cPanel > MySQL Databases koko6788_* + phpMyAdmin sql/schema.mysql.sql + api/config.php"
+          echo "=== Deploy PHP termine ==="
+          echo "FTP outcome: ${{ steps.ftp_deploy.outcome }}"
+          echo "Commit msg: ${{ github.event.head_commit.message }}"
+          echo "Verifie: https://tondomaine/public/version.txt -> 2026-10-13T13:30Z"
+          echo "Puis https://tondomaine/api/health -> {ok:1,version:9.0-php,dialect:mysql} ou 500 MySQL"
+          echo "Si 500 -> cPanel > MySQL koko6788_acsc + phpMyAdmin sql/schema.mysql.sql + api/config.local.php"
