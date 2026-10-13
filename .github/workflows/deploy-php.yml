@@ -18,13 +18,15 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-      - run: for f in api/*.php; do php -l "$f"; done
+      - run: for f in api/*.php; do echo "lint $f"; php -l "$f"; done
+      - run: php -l router.php
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: npm
       - run: npm ci || npm install
       - run: npm run check || true
+      - run: node --check public/sw.js || true
 
   deploy:
     name: Deploy via FTP
@@ -36,10 +38,34 @@ jobs:
 
       - name: Validate secrets
         run: |
+          echo "Host: $([ -n '${{ secrets.O2SWITCH_HOST }}' ] && echo SET || echo MISSING)"
+          echo "User: $([ -n '${{ secrets.O2SWITCH_USER }}' ] && echo SET || echo MISSING)"
+          echo "Password: $([ -n '${{ secrets.O2SWITCH_PASSWORD }}' ] && echo SET || echo MISSING)"
+          echo "Path: ${{ secrets.O2SWITCH_PATH || 'MISSING' }}"
           if [ -z "${{ secrets.O2SWITCH_HOST }}" ] || [ -z "${{ secrets.O2SWITCH_USER }}" ] || [ -z "${{ secrets.O2SWITCH_PATH }}" ]; then
             echo "::error::O2SWITCH_HOST / USER / PATH manquants"; exit 1; fi
           HOST='${{ secrets.O2SWITCH_HOST }}'
-          if echo "$HOST" | grep -qE '^https?://|/|:'; then echo "::error::HOST invalide"; exit 1; fi
+          if echo "$HOST" | grep -qE '^https?://|/|:'; then echo "::error::HOST invalide - IP/host nu SANS https:// ni :port"; exit 1; fi
+
+      - name: Check DNS & FTP reachability
+        run: |
+          HOST='${{ secrets.O2SWITCH_HOST }}'
+          echo "nslookup $HOST ..."
+          nslookup "$HOST" 2>&1 || echo "::warning::DNS fail"
+          echo "TCP 21 test ..."
+          timeout 8 bash -c "cat < /dev/null > /dev/tcp/$HOST/21" && echo "TCP 21 OK" || echo "::warning::TCP 21 fail"
+
+      - name: Ensure .htaccess exists locally
+        run: |
+          ls -la .htaccess public/.htaccess || true
+          if [ ! -f public/.htaccess ]; then mkdir -p public; printf '%s\n' '# cPanel CloudLinux' 'DirectoryIndex disabled' 'RewriteEngine On' > public/.htaccess; fi
+          cat public/.htaccess; cat .htaccess || true; git ls-files | grep -E "htaccess" || true
+
+      - name: Force full FTP republish (purge local cache)
+        run: |
+          rm -f .ftp-deploy-sync-state.json
+          ls -la public/ | head -n 30 || true
+          echo "git public files: $(git ls-files public | wc -l)"
 
       - name: Purge remote FTP sync cache (force full upload)
         continue-on-error: true
@@ -63,11 +89,12 @@ jobs:
           server: ${{ secrets.O2SWITCH_HOST }}
           username: ${{ secrets.O2SWITCH_USER }}
           password: ${{ secrets.O2SWITCH_PASSWORD }}
-          port: ${{ secrets.O2SWITCH_PORT || 21 }}
+          port: 21
           protocol: ftp
           local-dir: ./
           server-dir: ${{ secrets.O2SWITCH_PATH }}/
           log-level: verbose
+          timeout: 120000
           state-name: .ftp-deploy-sync-state.json
           exclude: |
             **/.git*
@@ -82,6 +109,27 @@ jobs:
             **/.ftp-deploy-sync-state.json
             **/api/config.local.php
             **/api/tmp/**
+            **/old.yml
+
+      - name: SSH verify after deploy (best-effort)
+        continue-on-error: true
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.O2SWITCH_HOST }}
+          username: ${{ secrets.O2SWITCH_USER }}
+          password: ${{ secrets.O2SWITCH_PASSWORD }}
+          key: ${{ secrets.O2SWITCH_SSH_KEY }}
+          port: ${{ secrets.O2SWITCH_PORT || 22 }}
+          timeout: 15s
+          command_timeout: 2m
+          script: |
+            set +e
+            echo ">> VERIF APRES DEPLOY"
+            ls -la "${{ secrets.O2SWITCH_PATH }}/" 2>&1 | head -n 40 || ls -la "$HOME/${{ secrets.O2SWITCH_PATH }}/" 2>&1 | head -n 40 || true
+            echo ">> public + api + htaccess"
+            ls -la "${{ secrets.O2SWITCH_PATH }}/public/" 2>&1 | head -n 40 || ls -la "$HOME/${{ secrets.O2SWITCH_PATH }}/public/" 2>&1 | head -n 40 || true
+            ls -la "${{ secrets.O2SWITCH_PATH }}/api/" 2>&1 | head -n 40 || ls -la "$HOME/${{ secrets.O2SWITCH_PATH }}/api/" 2>&1 | head -n 40 || true
+            cat "${{ secrets.O2SWITCH_PATH }}/public/.htaccess" 2>&1 | head -n 20 || cat "$HOME/${{ secrets.O2SWITCH_PATH }}/public/.htaccess" 2>&1 | head -n 20 || true
 
       - name: Post-deploy info
         run: |
