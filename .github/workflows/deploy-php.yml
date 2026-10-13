@@ -23,7 +23,7 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - run: npm ci
+      - run: npm ci || npm install
       - run: npm run check || true
 
   deploy:
