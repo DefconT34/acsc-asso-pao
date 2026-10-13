@@ -11,17 +11,20 @@ Options -Indexes
 </IfModule>
 <IfModule mod_rewrite.c>
   RewriteEngine On
-  # health alias
-  RewriteRule ^health$ api/health.php [L]
-  # API -> router unique
+  RewriteBase /
+  # health direct (racine /health -> api/health.php)
+  RewriteRule ^health/?$ api/health.php [L]
+  # health PHP direct - bypass rewrite pour debug (curl /api/health.php)
+  RewriteRule ^api/health\.php$ api/health.php [L]
+  RewriteRule ^api/health/?$ api/health.php [L]
+  # API -> router unique (tout /api/* -> api/index.php)
   RewriteCond %{REQUEST_URI} ^/api/
   RewriteRule ^api/(.*)$ api/index.php [L,QSA]
-  # SPA fallback: si pas un fichier/dossier et pas /api ni /public -> public/index.html
+  # SPA fallback: si pas fichier/dossier et pas /api -> public/index.html
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteCond %{REQUEST_URI} !^/api
-  RewriteCond %{REQUEST_URI} !^/public/
   RewriteCond %{REQUEST_URI} !^/api/
+  RewriteCond %{REQUEST_URI} !^/public/
   RewriteRule ^(.*)$ public/index.html [L]
 </IfModule>
 <IfModule mod_expires.c>
