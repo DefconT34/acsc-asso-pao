@@ -37,6 +37,8 @@ $HOME/
 .env
 .env.*
 !.env.example
+api/config.local.php
+api/tmp/
 
 # Template white-label (hors prod assopao - garder local uniquement)
 template-neutre/

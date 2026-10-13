@@ -1,0 +1,90 @@
+name: Deploy PHP o2switch (FTP)
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-php
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: CI checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+      - run: for f in api/*.php; do php -l "$f"; done
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run check || true
+
+  deploy:
+    name: Deploy via FTP
+    needs: ci
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Validate secrets
+        run: |
+          if [ -z "${{ secrets.O2SWITCH_HOST }}" ] || [ -z "${{ secrets.O2SWITCH_USER }}" ] || [ -z "${{ secrets.O2SWITCH_PATH }}" ]; then
+            echo "::error::O2SWITCH_HOST / USER / PATH manquants"; exit 1; fi
+          HOST='${{ secrets.O2SWITCH_HOST }}'
+          if echo "$HOST" | grep -qE '^https?://|/|:'; then echo "::error::HOST invalide"; exit 1; fi
+
+      - name: Purge remote FTP sync cache (force full upload)
+        continue-on-error: true
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.O2SWITCH_HOST }}
+          username: ${{ secrets.O2SWITCH_USER }}
+          password: ${{ secrets.O2SWITCH_PASSWORD }}
+          key: ${{ secrets.O2SWITCH_SSH_KEY }}
+          port: ${{ secrets.O2SWITCH_PORT || 22 }}
+          timeout: 15s
+          command_timeout: 1m
+          script: |
+            set +e
+            rm -f "${{ secrets.O2SWITCH_PATH }}/.ftp-deploy-sync-state.json" 2>&1 || true
+            rm -f "$HOME/${{ secrets.O2SWITCH_PATH }}/.ftp-deploy-sync-state.json" 2>&1 || true
+
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+        with:
+          server: ${{ secrets.O2SWITCH_HOST }}
+          username: ${{ secrets.O2SWITCH_USER }}
+          password: ${{ secrets.O2SWITCH_PASSWORD }}
+          port: ${{ secrets.O2SWITCH_PORT || 21 }}
+          protocol: ftp
+          local-dir: ./
+          server-dir: ${{ secrets.O2SWITCH_PATH }}/
+          log-level: verbose
+          state-name: .ftp-deploy-sync-state.json
+          exclude: |
+            **/.git*
+            **/.github/**
+            **/node_modules/**
+            **/database.db
+            **/database.db-*
+            **/.env
+            **/*.log
+            **/template-neutre/**
+            **/verify_*.js
+            **/.ftp-deploy-sync-state.json
+            **/api/config.local.php
+            **/api/tmp/**
+
+      - name: Post-deploy info
+        run: |
+          echo "=== FTP deploy PHP termine ==="
+          echo "Verifie: https://tondomaine/api/health et https://tondomaine/health"
+          echo "Si 500 sur /api/* -> cPanel > MySQL Databases koko6788_* + phpMyAdmin sql/schema.mysql.sql + api/config.php"

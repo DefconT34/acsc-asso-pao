@@ -1,0 +1,22 @@
+/* tokens.css - ACSC v9.0 Design System: Noir/Laiton + Creme/Tabac */
+:root{
+  --noir:#0A0A0A; --laiton:#C9A86A; --laiton-2:#E8C999; --creme:#F5F1E8; --tabac:#3C2415;
+  --ardoise:#1C2331; --ardoise-2:#2A3447; --creme-2:#FFFBF0; --blanc:#FFFFFF;
+  --radius:18px; --radius-sm:12px; --shadow:0 8px 32px rgba(10,10,10,.08); --shadow-lg:0 16px 48px rgba(10,10,10,.14);
+}
+/* Theme sombre par defaut (noir/laiton) */
+html{ color-scheme: dark; }
+body{ background: var(--noir); color:#EDE9E3; font-family:'IBM Plex Sans', system-ui, sans-serif; }
+/* Theme clair creme/tabac via [data-theme="clair"] */
+html[data-theme="clair"]{ color-scheme: light; }
+html[data-theme="clair"] body{ background: var(--creme); color: var(--tabac); }
+html[data-theme="clair"] header{ background: var(--creme-2) !important; color: var(--tabac) !important; border-color: var(--laiton) !important; }
+.card{ border-radius: var(--radius); box-shadow: var(--shadow); border:1px solid rgba(201,168,106,.18); background: var(--blanc); }
+html[data-theme="clair"] .card{ background: var(--blanc); border-color: rgba(60,36,21,.12); }
+.btn-laiton{ background: var(--laiton); color: var(--noir); font-weight: 800; border-radius: 9999px; transition: all .2s; }
+.btn-laiton:hover{ background: var(--laiton-2); transform: translateY(-1px); box-shadow: var(--shadow); }
+.btn-ghost{ border:1px solid rgba(255,255,255,.18); color: inherit; border-radius: 9999px; }
+html[data-theme="clair"] .btn-ghost{ border-color: rgba(60,36,21,.2); }
+.kpi-animate{ animation: countUp .35s ease; }
+@keyframes countUp{ from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+:focus-visible{ outline:2px solid var(--laiton); outline-offset:2px; }

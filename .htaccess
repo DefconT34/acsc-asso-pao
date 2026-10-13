@@ -1,6 +1,33 @@
-# Racine ACSC - bloque accès direct aux DB si quelqu'un place database.db à la racine
-<FilesMatch "^(database\.db.*|.*\.db.*|\.env)$">
+# ACSC v9.0-php - PHP natif (plus de Node/Passenger)
+# Bloque secrets
+<FilesMatch "^(database\.db.*|.*\.db.*|\.env.*)$">
   Require all denied
 </FilesMatch>
 Options -Indexes
-# Ne pas interférer avec Passenger - pas de rewrite SPA ici (géré par Node)
+<IfModule mod_headers.c>
+  Header always set X-Frame-Options "DENY"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # health alias
+  RewriteRule ^health$ api/health.php [L]
+  # API -> router unique
+  RewriteCond %{REQUEST_URI} ^/api/
+  RewriteRule ^api/(.*)$ api/index.php [L,QSA]
+  # SPA fallback: si pas un fichier/dossier et pas /api ni /public -> public/index.html
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_URI} !^/api
+  RewriteCond %{REQUEST_URI} !^/public/
+  RewriteCond %{REQUEST_URI} !^/api/
+  RewriteRule ^(.*)$ public/index.html [L]
+</IfModule>
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 1 day"
+  ExpiresByType application/javascript "access plus 1 day"
+  ExpiresByType image/svg+xml "access plus 1 day"
+  ExpiresByType application/json "access plus 0 seconds"
+</IfModule>

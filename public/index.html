@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ACSC v8.6 - Frais deduits Pro</title>
+<title>ACSC v9.0 - Frais deduits Pro</title>
 <script src="/js/tailwind.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -11,6 +11,8 @@
 <link rel="icon" type="image/svg+xml" href="logo.svg">
 <link rel="apple-touch-icon" href="logo.svg">
 <link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="/css/tokens.css">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=IBM+Plex+Sans:wght@400;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
 <meta name="theme-color" content="#0A0A0A">
 <style>
 *{ -webkit-tap-highlight-color:transparent; }
@@ -77,7 +79,7 @@ input, select, textarea{ font-size:16px; }
     <button onclick="toggleDark()" class="bg-white/10 px-2 py-1.5 rounded-full text-xs">🌙</button>
     <button onclick="toggleMobileMenu()" class="bg-white text-[#0F2A44] px-3 py-1.5 rounded-full text-sm font-black">☰</button>
   </div>
-</header><div id="stepsBar" class="bg-white border-b sticky top-[56px] z-30">
+<button id="themeToggle" onclick="toggleTheme()" class="hidden lg:inline-flex text-xs border border-[#C9A86A]/40 px-3 py-1.5 rounded-full ml-2">☀️ Clair</button></header><div id="stepsBar" class="bg-white border-b sticky top-[56px] z-30">
 <div class="max-w-[1600px] mx-auto px-3 py-2 flex items-center gap-2 text-[11px] overflow-x-auto">
 <div class="flex items-center gap-2 shrink-0"><span id="step1Dot" class="step-dot bg-amber-100 text-amber-700 border border-amber-200">1</span><span class="font-bold">Creer un projet</span><span id="step1State" class="text-[10px] px-2 py-0.5 rounded-full bg-amber-50 border text-amber-700">a faire</span></div>
 <span class="text-gray-300">→</span>
@@ -372,5 +374,5 @@ function copyLienCmd(){
   });
 }
 </script>
-<script>const _oc=window.confirmSauvegarder;if(_oc)window.confirmSauvegarder=async function(){const r=await _oc.apply(this,arguments);setTimeout(()=>{if(typeof refreshGateProjet==="function")refreshGateProjet();},700);return r;};const _oh=window.ouvrirHistorique;if(_oh)window.ouvrirHistorique=function(){const v=_oh.apply(this,arguments);setTimeout(()=>{if(typeof refreshGateProjet==="function")refreshGateProjet();},900);return v;};window.addEventListener("click",function(e){if(e.target&&e.target.id==="btnCreerProjet")setTimeout(()=>{if(typeof refreshGateProjet==="function")refreshGateProjet();},900);});</script></body>
+<script>const _oc=window.confirmSauvegarder;if(_oc)window.confirmSauvegarder=async function(){const r=await _oc.apply(this,arguments);setTimeout(()=>{if(typeof refreshGateProjet==="function")refreshGateProjet();},700);return r;};const _oh=window.ouvrirHistorique;if(_oh)window.ouvrirHistorique=function(){const v=_oh.apply(this,arguments);setTimeout(()=>{if(typeof refreshGateProjet==="function")refreshGateProjet();},900);return v;};window.addEventListener("click",function(e){if(e.target&&e.target.id==="btnCreerProjet")setTimeout(()=>{if(typeof refreshGateProjet==="function")refreshGateProjet();},900);});</script><script src="/js/theme-switch.js"></script></body>
 </html>
