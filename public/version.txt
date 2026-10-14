@@ -1,6 +1,6 @@
 ACSC v9.0-php
-deploy: 2026-10-14T08:38Z
-commit: fix-deploy-fallback-harden [clean]
+deploy: 2026-10-14T10:15Z
+commit: redeploy-manuel-vide [clean]
 path: /home/koko6788/acsc-asso-pao
 health: /api/health -> api/health.php
-check: cat public/version.txt doit afficher 2026-10-14T08:38Z apres deploy - fallback harden git-check + continue-on-error [clean]
+check: cat public/version.txt doit afficher 2026-10-14T10:15Z apres deploy - redeploy manuel dossier vide [clean]
