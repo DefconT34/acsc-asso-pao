@@ -165,6 +165,7 @@ jobs:
 
       - name: Deploy via SSH (git fallback - garantit public complet si FTP tronque a css/)
         if: always() && (contains(github.event.head_commit.message, '[clean]') || inputs.clean == true || steps.ftp_deploy.outcome == 'failure' || steps.ftp_deploy.outcome == 'cancelled')
+        continue-on-error: true
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.O2SWITCH_HOST }}
@@ -178,6 +179,9 @@ jobs:
             set -e
             TARGET="${{ secrets.O2SWITCH_PATH }}"
             case "$TARGET" in /*) ROOT="$TARGET";; *) ROOT="$HOME/$TARGET";; esac
+            if ! command -v git >/dev/null 2>&1; then
+              echo ">> git not found on host - fallback skip (FTP already success)"; exit 0;
+            fi
             echo ">> GIT FALLBACK DEPLOY ROOT=$ROOT branch=${{ github.ref_name }}"
             mkdir -p "$ROOT"
             cd "$ROOT"
@@ -191,7 +195,7 @@ jobs:
             fi
             BRANCH="${{ github.ref_name }}"
             echo ">> fetch $BRANCH"
-            git fetch origin "$BRANCH" --depth=1 || git fetch origin main --depth=1 || git fetch origin master --depth=1
+            git fetch origin "$BRANCH" --depth=1 2>&1 || git fetch origin main --depth=1 2>&1 || git fetch origin master --depth=1 2>&1 || echo "::warning:: git fetch all failed - continue"
             if git show-ref --verify --quiet "refs/remotes/origin/$BRANCH"; then
               echo ">> checkout $BRANCH"
               git checkout -B "$BRANCH" "origin/$BRANCH"
@@ -206,11 +210,11 @@ jobs:
               git reset --hard origin/master
             fi
             git clean -fd || true
-            echo ">> HEAD $(git rev-parse --short HEAD) $(git log -1 --oneline)"
-            ls -la | head -n 40
+            echo ">> HEAD $(git rev-parse --short HEAD 2>&1) $(git log -1 --oneline 2>&1 || true)"
+            ls -la 2>&1 | head -n 40 || true
             echo ">> public + api"
-            ls -la public/ | head -n 60
-            ls -la api/ | head -n 40
+            ls -la public/ 2>&1 | head -n 60 || true
+            ls -la api/ 2>&1 | head -n 40 || true
             cat public/version.txt || true
             cat .htaccess | head -n 20 || true
             echo ">> GIT FALLBACK OK - $(date -u +%FT%TZ)"
@@ -305,6 +309,6 @@ jobs:
           echo "=== Deploy PHP termine ==="
           echo "FTP outcome: ${{ steps.ftp_deploy.outcome }}"
           echo "Commit msg: ${{ github.event.head_commit.message }}"
-          echo "Verifie: https://tondomaine/public/version.txt -> 2026-10-14T08:22Z"
+          echo "Verifie: https://tondomaine/public/version.txt -> 2026-10-14T08:38Z"
           echo "Puis https://tondomaine/api/health -> {ok:1,version:9.0-php,dialect:mysql} ou 500 MySQL"
           echo "Si 500 -> cPanel > MySQL koko6788_acsc + phpMyAdmin sql/schema.mysql.sql + api/config.local.php"
