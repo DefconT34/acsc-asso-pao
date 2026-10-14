@@ -1,6 +1,7 @@
 ACSC v9.0-php
-deploy: 2026-10-14T15:35Z
-commit: publier-tous-fichiers [clean] -> 2026-10-14T15:35Z
+deploy: 2026-10-14T16:01Z
+commit: publier-tous-fichiers-diag [clean] -> 2026-10-14T16:01Z
 path: /home/koko6788/acsc-asso-pao
 health: /api/health -> api/health.php
-check: cat public/version.txt doit afficher 2026-10-14T15:35Z apres deploy - publier tous fichiers [clean]
+diag: /api/diag.php -> voir FS perms version
+check: cat public/version.txt doit afficher 2026-10-14T16:01Z apres deploy - publier tous fichiers diag + fix htaccess root multi-home

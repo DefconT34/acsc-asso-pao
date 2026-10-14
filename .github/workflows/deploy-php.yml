@@ -270,17 +270,27 @@ jobs:
             set +e
             TARGET="${{ secrets.O2SWITCH_PATH }}"
             case "$TARGET" in /*) ROOT="$TARGET";; *) ROOT="$HOME/$TARGET";; esac
-            echo ">> FIX PERMS 0755 public + htaccess - publier tous fichiers"
-            chmod 755 "$ROOT" 2>&1 || true
-            chmod 755 "$ROOT/public" 2>&1 || true
-            find "$ROOT/public" -type d -exec chmod 755 {} \; 2>&1 || true
-            find "$ROOT/public" -type f -exec chmod 644 {} \; 2>&1 || true
-            chmod 644 "$ROOT/.htaccess" 2>&1 || true
-            chmod 644 "$ROOT/public/.htaccess" 2>&1 || true
-            ls -ld "$ROOT" "$ROOT/public" "$ROOT/.htaccess" "$ROOT/public/.htaccess" 2>&1 || true
-            cat "$ROOT/public/version.txt" 2>&1 | head -n 20 || true
-            ls -la "$ROOT/public/" 2>&1 | head -n 40 || true
-            echo ">> PERMS FIX DONE"
+            ROOT2="/home2/koko6788/$TARGET"
+            ROOT3="/home/koko6788/$TARGET"
+            echo ">> FIX PERMS 0755 public + htaccess - publier tous fichiers - multi HOME"
+            for R in "$ROOT" "$ROOT2" "$ROOT3"; do
+              [ -d "$R" ] || continue
+              echo ">> R=$R"
+              chmod 755 "$R" 2>&1 || true
+              chmod 755 "$R/public" 2>&1 || true
+              find "$R/public" -type d -exec chmod 755 {} \; 2>&1 || true
+              find "$R/public" -type f -exec chmod 644 {} \; 2>&1 || true
+              chmod 644 "$R/.htaccess" 2>&1 || true
+              chmod 644 "$R/public/.htaccess" 2>&1 || true
+              chmod 644 "$R/api/diag.php" 2>&1 || true
+              ls -ld "$R" "$R/public" "$R/.htaccess" "$R/public/.htaccess" "$R/public/version.txt" "$R/public/index.html" 2>&1 || true
+              cat "$R/public/version.txt" 2>&1 | head -n 20 || true
+              ls -la "$R/public/" 2>&1 | head -n 60 || true
+              echo ">> PERMS FIX DONE R=$R"
+            done
+            ls -la "$HOME" 2>&1 | head -n 40 || true
+            ls -la "/home/koko6788" 2>&1 | head -n 40 || true
+            ls -la "/home2/koko6788" 2>&1 | head -n 40 || true
       - name: SSH verify after deploy (best-effort)
         if: always()
         continue-on-error: true
@@ -336,6 +346,6 @@ jobs:
           echo "=== Deploy PHP termine ==="
           echo "FTP outcome: ${{ steps.ftp_deploy.outcome }}"
           echo "Commit msg: ${{ github.event.head_commit.message }}"
-          echo "Verifie: https://tondomaine/public/version.txt -> 2026-10-14T15:35Z"
+          echo "Verifie: https://tondomaine/public/version.txt -> 2026-10-14T16:01Z"
           echo "Puis https://tondomaine/api/health -> {ok:1,version:9.0-php,dialect:mysql} ou 500 MySQL"
           echo "Si 500 -> cPanel > MySQL koko6788_acsc + phpMyAdmin sql/schema.mysql.sql + api/config.local.php"

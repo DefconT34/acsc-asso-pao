@@ -20,6 +20,9 @@ Options -Indexes
   # API -> router unique (tout /api/* -> api/index.php)
   RewriteCond %{REQUEST_URI} ^/api/
   RewriteRule ^api/(.*)$ api/index.php [L,QSA]
+  # Root explicit -> SPA (evite 403 Directory quand / est un dossier)
+  RewriteRule ^$ public/index.html [L]
+
   # SPA fallback: si pas fichier/dossier et pas /api -> public/index.html
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
