@@ -1,7 +1,7 @@
 ACSC v9.0-php
-deploy: 2026-10-14T16:01Z
-commit: publier-tous-fichiers-diag [clean] -> 2026-10-14T16:01Z
+deploy: 2026-10-14T16:14Z
+commit: publier-tous-fichiers-final [clean] -> 2026-10-14T16:14Z
 path: /home/koko6788/acsc-asso-pao
 health: /api/health -> api/health.php
-diag: /api/diag.php -> voir FS perms version
-check: cat public/version.txt doit afficher 2026-10-14T16:01Z apres deploy - publier tous fichiers diag + fix htaccess root multi-home
+diag: /api/diag.php + /api/diag -> api/diag.php (bypass router)
+check: cat public/version.txt doit afficher 2026-10-14T16:14Z apres deploy - htaccess DirectoryIndex + diag bypass + root rule

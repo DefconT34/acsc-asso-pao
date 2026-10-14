@@ -4,6 +4,7 @@
   Require all denied
 </FilesMatch>
 Options -Indexes
+DirectoryIndex public/index.html
 <IfModule mod_headers.c>
   Header always set X-Frame-Options "DENY"
   Header always set X-Content-Type-Options "nosniff"
@@ -17,6 +18,9 @@ Options -Indexes
   # health PHP direct - bypass rewrite pour debug (curl /api/health.php)
   RewriteRule ^api/health\.php$ api/health.php [L]
   RewriteRule ^api/health/?$ api/health.php [L]
+  # diag bypass direct (evite router -> 404 si route manquante)
+  RewriteRule ^api/diag\.php$ api/diag.php [L]
+  RewriteRule ^api/diag/?$ api/diag.php [L]
   # API -> router unique (tout /api/* -> api/index.php)
   RewriteCond %{REQUEST_URI} ^/api/
   RewriteRule ^api/(.*)$ api/index.php [L,QSA]
