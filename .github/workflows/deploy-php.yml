@@ -254,6 +254,33 @@ jobs:
               ls -la "$ROOT/api/" 2>&1 | head -n 20 || true
             fi
 
+      - name: Fix permissions 0755 public (o2switch chmod)
+        if: always()
+        continue-on-error: true
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.O2SWITCH_HOST }}
+          username: ${{ secrets.O2SWITCH_USER }}
+          password: ${{ secrets.O2SWITCH_PASSWORD }}
+          key: ${{ secrets.O2SWITCH_SSH_KEY }}
+          port: ${{ secrets.O2SWITCH_PORT || 22 }}
+          timeout: 15s
+          command_timeout: 2m
+          script: |
+            set +e
+            TARGET="${{ secrets.O2SWITCH_PATH }}"
+            case "$TARGET" in /*) ROOT="$TARGET";; *) ROOT="$HOME/$TARGET";; esac
+            echo ">> FIX PERMS 0755 public + htaccess - publier tous fichiers"
+            chmod 755 "$ROOT" 2>&1 || true
+            chmod 755 "$ROOT/public" 2>&1 || true
+            find "$ROOT/public" -type d -exec chmod 755 {} \; 2>&1 || true
+            find "$ROOT/public" -type f -exec chmod 644 {} \; 2>&1 || true
+            chmod 644 "$ROOT/.htaccess" 2>&1 || true
+            chmod 644 "$ROOT/public/.htaccess" 2>&1 || true
+            ls -ld "$ROOT" "$ROOT/public" "$ROOT/.htaccess" "$ROOT/public/.htaccess" 2>&1 || true
+            cat "$ROOT/public/version.txt" 2>&1 | head -n 20 || true
+            ls -la "$ROOT/public/" 2>&1 | head -n 40 || true
+            echo ">> PERMS FIX DONE"
       - name: SSH verify after deploy (best-effort)
         if: always()
         continue-on-error: true
@@ -309,6 +336,6 @@ jobs:
           echo "=== Deploy PHP termine ==="
           echo "FTP outcome: ${{ steps.ftp_deploy.outcome }}"
           echo "Commit msg: ${{ github.event.head_commit.message }}"
-          echo "Verifie: https://tondomaine/public/version.txt -> 2026-10-14T10:15Z"
+          echo "Verifie: https://tondomaine/public/version.txt -> 2026-10-14T15:35Z"
           echo "Puis https://tondomaine/api/health -> {ok:1,version:9.0-php,dialect:mysql} ou 500 MySQL"
           echo "Si 500 -> cPanel > MySQL koko6788_acsc + phpMyAdmin sql/schema.mysql.sql + api/config.local.php"
