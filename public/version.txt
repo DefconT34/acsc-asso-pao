@@ -1,6 +1,6 @@
 ACSC v9.0-php
-deploy: 2026-10-13T13:30Z
-commit: clean-wipe-ssh-git-full [clean]
+deploy: 2026-10-14T08:22Z
+commit: fix-deploy-wipe-case-always [clean]
 path: /home/koko6788/acsc-asso-pao
 health: /api/health -> api/health.php
-check: cat public/version.txt doit afficher 2026-10-13T13:30Z apres deploy - WIPE + SSH git full [clean]
+check: cat public/version.txt doit afficher 2026-10-14T08:22Z apres deploy - WIPE POSIX case + FTP always + SSH git full [clean]

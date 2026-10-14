@@ -95,6 +95,7 @@ jobs:
 
       - name: "WIPE acsc-asso-pao (vide le repertoire si [clean] dans commit ou clean=true)"
         if: contains(github.event.head_commit.message, '[clean]') || inputs.clean == true
+        continue-on-error: true
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.O2SWITCH_HOST }}
@@ -107,7 +108,7 @@ jobs:
           script: |
             set -e
             TARGET="${{ secrets.O2SWITCH_PATH }}"
-            if [[ "$TARGET" = /* ]]; then ROOT="$TARGET"; else ROOT="$HOME/$TARGET"; fi
+            case "$TARGET" in /*) ROOT="$TARGET";; *) ROOT="$HOME/$TARGET";; esac
             echo ">> WIPE DEMANDE - ROOT=$ROOT TARGET=$TARGET"
             if [ -z "$ROOT" ] || [ "$ROOT" = "/" ] || [ "$ROOT" = "$HOME" ] || [ "$ROOT" = "$HOME/" ]; then
               echo "!! REFUS WIPE ROOT invalide: $ROOT"; exit 1; fi
@@ -131,6 +132,7 @@ jobs:
             echo ">> WIPE OK - FTP + git fallback vont republier complet"
 
       - name: Deploy via FTP
+        if: always()
         id: ftp_deploy
         continue-on-error: true
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
@@ -175,7 +177,7 @@ jobs:
           script: |
             set -e
             TARGET="${{ secrets.O2SWITCH_PATH }}"
-            if [[ "$TARGET" = /* ]]; then ROOT="$TARGET"; else ROOT="$HOME/$TARGET"; fi
+            case "$TARGET" in /*) ROOT="$TARGET";; *) ROOT="$HOME/$TARGET";; esac
             echo ">> GIT FALLBACK DEPLOY ROOT=$ROOT branch=${{ github.ref_name }}"
             mkdir -p "$ROOT"
             cd "$ROOT"
@@ -228,7 +230,7 @@ jobs:
           script: |
             set +e
             TARGET="${{ secrets.O2SWITCH_PATH }}"
-            if [[ "$TARGET" = /* ]]; then ROOT="$TARGET"; else ROOT="$HOME/$TARGET"; fi
+            case "$TARGET" in /*) ROOT="$TARGET";; *) ROOT="$HOME/$TARGET";; esac
             echo ">> RESTORE config.local.php check"
             if [ -f /tmp/acsc_config.local.php.bak ]; then
               mkdir -p "$ROOT/api"
@@ -249,6 +251,7 @@ jobs:
             fi
 
       - name: SSH verify after deploy (best-effort)
+        if: always()
         continue-on-error: true
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -269,6 +272,7 @@ jobs:
             cat "${{ secrets.O2SWITCH_PATH }}/public/.htaccess" 2>&1 | head -n 20 || cat "$HOME/${{ secrets.O2SWITCH_PATH }}/public/.htaccess" 2>&1 | head -n 20 || true
 
       - name: SSH verify public/version + api/health quick
+        if: always()
         continue-on-error: true
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -282,7 +286,7 @@ jobs:
           script: |
             set +e
             TARGET="${{ secrets.O2SWITCH_PATH }}"
-            if [[ "$TARGET" = /* ]]; then ROOT="$TARGET"; else ROOT="$HOME/$TARGET"; fi
+            case "$TARGET" in /*) ROOT="$TARGET";; *) ROOT="$HOME/$TARGET";; esac
             echo ">> VERSION + PUBLIC"
             cat "$ROOT/public/version.txt" 2>&1
             echo ">> public file count"
@@ -301,6 +305,6 @@ jobs:
           echo "=== Deploy PHP termine ==="
           echo "FTP outcome: ${{ steps.ftp_deploy.outcome }}"
           echo "Commit msg: ${{ github.event.head_commit.message }}"
-          echo "Verifie: https://tondomaine/public/version.txt -> 2026-10-13T13:30Z"
+          echo "Verifie: https://tondomaine/public/version.txt -> 2026-10-14T08:22Z"
           echo "Puis https://tondomaine/api/health -> {ok:1,version:9.0-php,dialect:mysql} ou 500 MySQL"
           echo "Si 500 -> cPanel > MySQL koko6788_acsc + phpMyAdmin sql/schema.mysql.sql + api/config.local.php"
