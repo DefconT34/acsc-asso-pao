@@ -48,6 +48,7 @@ $routes = [
   'GET /public/mes-commandes' => 'public_mes_commandes.php',
   'POST /public/commande' => 'public_commande.php',
   'GET /health' => 'health.php',
+  'GET /diag' => 'diag.php',
 ];
 
 function matchRoute(string $method, string $uri, array $routes): ?array {

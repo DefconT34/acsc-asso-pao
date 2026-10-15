@@ -1,7 +1,7 @@
 ACSC v9.0-php
-deploy: 2026-10-14T16:14Z
-commit: publier-tous-fichiers-final [clean] -> 2026-10-14T16:14Z
-path: /home/koko6788/acsc-asso-pao
-health: /api/health -> api/health.php
-diag: /api/diag.php + /api/diag -> api/diag.php (bypass router)
-check: cat public/version.txt doit afficher 2026-10-14T16:14Z apres deploy - htaccess DirectoryIndex + diag bypass + root rule
+deploy: 2026-10-15T10:48Z
+commit: publier-tous-fichiers [clean] -> 2026-10-15T10:48Z
+path: /home/koko6788/acsc-asso-pao  (HOME peut etre /home2/koko6788)
+health: /api/health -> api/health.php  (poolOk:true MySQL koko6788_acsc)
+diag: /api/diag.php + /api/diag -> api/diag.php (bypass router - inspect FS)
+check: cat public/version.txt doit afficher 2026-10-15T10:48Z apres deploy - htaccess DirectoryIndex public/index.html + RewriteRule ^$ + diag bypass
