@@ -215,43 +215,38 @@ jobs:
             echo ">> GIT FALLBACK DEPLOY multi-home ROOTS=$ROOTS branch=${{ github.ref_name }}"
             for ROOT_LOOP in $ROOTS; do
               if [ -z "$ROOT_LOOP" ] || [ "$ROOT_LOOP" = "/" ] || [ "$ROOT_LOOP" = "$HOME" ]; then echo ">> SKIP git $ROOT_LOOP"; continue; fi
-              echo ">> === GIT FALLBACK SUR $ROOT_LOOP ==="
-              mkdir -p "$ROOT_LOOP"
-              cd "$ROOT_LOOP"
-              git config --global --add safe.directory "$ROOT_LOOP" 2>/dev/null || true
-            if [ ! -d .git ]; then
-              echo ">> init git"
-              git init
-              git remote add origin https://github.com/${{ github.repository }}.git 2>/dev/null || git remote set-url origin https://github.com/${{ github.repository }}.git
-            else
-              git remote set-url origin https://github.com/${{ github.repository }}.git 2>/dev/null || git remote add origin https://github.com/${{ github.repository }}.git
-            fi
-            BRANCH="${{ github.ref_name }}"
-            echo ">> fetch $BRANCH"
-            git fetch origin "$BRANCH" --depth=1 2>&1 || git fetch origin main --depth=1 2>&1 || git fetch origin master --depth=1 2>&1 || echo "::warning:: git fetch all failed - continue"
-            if git show-ref --verify --quiet "refs/remotes/origin/$BRANCH"; then
-              echo ">> checkout $BRANCH"
-              git checkout -B "$BRANCH" "origin/$BRANCH"
-              git reset --hard "origin/$BRANCH"
-            elif git show-ref --verify --quiet refs/remotes/origin/main; then
-              echo ">> fallback main"
-              git checkout -B main origin/main
-              git reset --hard origin/main
-            else
-              echo ">> fallback master"
-              git checkout -B master origin/master
-              git reset --hard origin/master
-            fi
-            git clean -fd || true
-            echo ">> HEAD sur $ROOT_LOOP $(git rev-parse --short HEAD 2>&1) $(git log -1 --oneline 2>&1 || true)"
-              ls -la 2>&1 | head -n 40 || true
-              echo ">> public + api sur $ROOT_LOOP"
-              ls -la public/ 2>&1 | head -n 60 || true
-              ls -la api/ 2>&1 | head -n 40 || true
-              cat public/version.txt 2>&1 | head -n 10 || true
-              cat .htaccess 2>&1 | head -n 20 || true
+              echo ">> === FRESH GIT CLONE SUR $ROOT_LOOP ==="
+              # backup .git if exists to speed? No, fresh wipe for clean
+              rm -rf "$ROOT_LOOP" 2>&1 || true
+              mkdir -p "$(dirname "$ROOT_LOOP")"
+              # clone fresh
+              BRANCH="${{ github.ref_name }}"
+              echo ">> git clone $BRANCH -> $ROOT_LOOP"
+              if ! git clone --depth=1 --branch "$BRANCH" https://github.com/${{ github.repository }}.git "$ROOT_LOOP" 2>&1; then
+                echo ">> clone $BRANCH failed, try main"
+                git clone --depth=1 --branch main https://github.com/${{ github.repository }}.git "$ROOT_LOOP" 2>&1 || git clone --depth=1 https://github.com/${{ github.repository }}.git "$ROOT_LOOP" 2>&1 || echo "::warning:: git clone all failed $ROOT_LOOP"
+              fi
+              if [ -d "$ROOT_LOOP/.git" ]; then
+                cd "$ROOT_LOOP"
+                git log -1 --oneline 2>&1 || true
+                echo ">> HEAD $(git rev-parse --short HEAD 2>&1)"
+              fi
+              echo ">> ls $ROOT_LOOP"
+              ls -la "$ROOT_LOOP" 2>&1 | head -n 40 || true
+              echo ">> public + api + htaccess sur $ROOT_LOOP"
+              ls -la "$ROOT_LOOP/public" 2>&1 | head -n 60 || true
+              ls -la "$ROOT_LOOP/api" 2>&1 | head -n 40 || true
+              cat "$ROOT_LOOP/public/version.txt" 2>&1 | head -n 10 || true
+              cat "$ROOT_LOOP/.htaccess" 2>&1 | head -n 30 || true
+              # Ensure perms correct immediately after clone
+              chmod 755 "$ROOT_LOOP" 2>&1 || true
+              chmod 755 "$ROOT_LOOP/public" 2>&1 || true
+              find "$ROOT_LOOP/public" -type d -exec chmod 755 {} \; 2>&1 || true
+              find "$ROOT_LOOP/public" -type f -exec chmod 644 {} \; 2>&1 || true
+              chmod 644 "$ROOT_LOOP/.htaccess" 2>&1 || true
+              chmod 644 "$ROOT_LOOP/public/.htaccess" 2>&1 || true
             done
-            echo ">> GIT FALLBACK OK multi-home - $(date -u +%FT%TZ)"
+            echo ">> GIT FALLBACK OK multi-home fresh clone - $(date -u +%FT%TZ)"
 
       - name: Restore config.local.php after WIPE (si backup existe)
         if: always() && (contains(github.event.head_commit.message, '[clean]') || inputs.clean == true)
@@ -317,6 +312,10 @@ jobs:
             ROOT3="/home/koko6788/$TARGET"
             ROOTA="$HOME/$TARGET"
             echo ">> FIX PERMS 0755 public + htaccess - publier tous fichiers - multi HOME - $(date -u +%FT%TZ) HOME=$HOME"
+            # Ensure parent dirs are traversable (o2switch HOME may be 0750)
+            chmod 755 "$HOME" 2>&1 || true
+            chmod 755 "/home/koko6788" 2>&1 || true
+            chmod 755 "/home2/koko6788" 2>&1 || true
             for R in "$ROOT" "$ROOT2" "$ROOT3" "$ROOTA"; do
               [ -d "$R" ] || continue
               echo ">> R=$R"
@@ -418,6 +417,6 @@ jobs:
           echo "=== Deploy PHP termine ==="
           echo "FTP outcome: ${{ steps.ftp_deploy.outcome }}"
           echo "Commit msg: ${{ github.event.head_commit.message }}"
-          echo "Verifie: https://tondomaine/public/version.txt -> 2026-10-15T11:26Z"
+          echo "Verifie: https://tondomaine/public/version.txt -> 2026-10-15T12:05Z"
           echo "Puis https://tondomaine/api/health -> {ok:1,version:9.0-php,dialect:mysql} ou 500 MySQL"
           echo "Si 500 -> cPanel > MySQL koko6788_acsc + phpMyAdmin sql/schema.mysql.sql + api/config.local.php"

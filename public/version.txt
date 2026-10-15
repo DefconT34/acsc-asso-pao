@@ -1,8 +1,8 @@
 ACSC v9.0-php
-deploy: 2026-10-15T11:26Z
-commit: publier-tous-fichiers [clean] multi-home fix -> 2026-10-15T11:26Z
+deploy: 2026-10-15T12:05Z
+commit: publier-tous-fichiers [clean] multi-home fix -> 2026-10-15T12:05Z
 path: multi-home /home/koko6788/acsc-asso-pao + /home2/koko6788/acsc-asso-pao + $HOME/acsc-asso-pao
 health: /api/health -> api/health.php  (poolOk:true MySQL koko6788_acsc)
 diag: /api/diag.php + /api/diag -> api/diag.php (bypass router - inspect FS)
 htaccess: DirectoryIndex public/index.html + RewriteRule ^$ + diag bypass + SPA fallback
-check: curl -k https://assopao.thecigarodyssey.com/public/version.txt doit afficher 2026-10-15T11:26Z apres deploy
+check: curl -k https://assopao.thecigarodyssey.com/public/version.txt doit afficher 2026-10-15T12:05Z apres deploy
